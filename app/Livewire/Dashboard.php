@@ -261,6 +261,10 @@ class Dashboard extends Component
     #[Computed]
     public function residentSubmittedForCurrentPeriod(): bool
     {
+        if (config('water.submission_window_bypass')) {
+            return false;
+        }
+
         return $this->residentCanEditMeter && $this->residentCurrentReading !== null;
     }
 

@@ -24,4 +24,9 @@
     .app-card {
         @apply rounded-2xl border border-white/70 bg-white/90 shadow-sm;
     }
+
+    /* Жилец с телефона: запас под жест «домой» / нижнюю панель */
+    .resident-mobile-pad {
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    }
 }

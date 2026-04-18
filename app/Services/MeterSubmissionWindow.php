@@ -25,6 +25,10 @@ class MeterSubmissionWindow
 
     public function isOpenForResident(int $year, int $month, ?Carbon $at = null): bool
     {
+        if (config('water.submission_window_bypass')) {
+            return true;
+        }
+
         $at = $at ?? now();
 
         return $at->between($this->opensAt($year, $month), $this->closesAt($year, $month));
@@ -38,6 +42,11 @@ class MeterSubmissionWindow
     public function residentActionablePeriodAt(?Carbon $at = null): ?array
     {
         $at = $at ?? now();
+
+        if (config('water.submission_window_bypass')) {
+            return ['year' => $at->year, 'month' => $at->month];
+        }
+
         $openDay = (int) config('water.submission_opens_day');
         $closeDay = (int) config('water.submission_closes_day');
 

@@ -17,4 +17,11 @@ return [
 
     'submission_closes_day' => 10,
 
+    /*
+    | Временно для тестов (OCR и т.п.): true — жилец всегда в «открытом» окне
+    | по текущему календарному месяцу, форма показаний не скрывается после сдачи.
+    | На продакшене держите false.
+    */
+    'submission_window_bypass' => env('WATER_SUBMISSION_WINDOW_BYPASS', false),
+
 ];

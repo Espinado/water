@@ -8,6 +8,8 @@ use App\Models\MeterReading;
 use App\Models\User;
 use App\Services\GoogleCloudVisionDocumentTextDetector;
 use App\Services\MeterSubmissionWindow;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -29,6 +31,23 @@ class AppServiceProvider extends ServiceProvider
     {
         // MySQL/MariaDB (utf8mb4): индекс по varchar(255) > 1000 байт — см. SQLSTATE 1071.
         Schema::defaultStringLength(191);
+
+        ResetPassword::toMailUsing(function (object $notifiable, string $token): MailMessage {
+            $url = url(route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ], false));
+
+            $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
+
+            return (new MailMessage)
+                ->subject('Установка пароля')
+                ->line('Вы получили это письмо, потому что для вашей учётной записи запрошена установка или смена пароля.')
+                ->line('Так бывает, когда управляющий дома добавил вас в систему, либо когда вы сами запросили восстановление доступа.')
+                ->action('Установить пароль', $url)
+                ->line('Ссылка действительна в течение '.$minutes.' минут.')
+                ->line('Если вы не отправляли этот запрос, просто проигнорируйте письмо — пароль не изменится.');
+        });
 
         Gate::define('record-meter-reading', function (User $user, Apartment $apartment, int $year, int $month) {
             if ($user->isManager()) {
