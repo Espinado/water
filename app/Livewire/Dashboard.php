@@ -10,6 +10,7 @@ use App\Services\MeterSubmissionWindow;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -66,7 +67,9 @@ class Dashboard extends Component
     {
         $user = auth()->user();
         if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
-            abort(403);
+            session()->flash('reading_error', 'Сохранение показаний доступно только жильцу с назначенной квартирой. Для проверки OCR войдите под учётной записью жильца, не под управляющим.');
+
+            return;
         }
 
         $apartment = $user->apartment()->with('building')->first();
@@ -90,10 +93,16 @@ class Dashboard extends Component
             ->where('month', $period['month'])
             ->first();
 
-        if ($existing) {
-            Gate::authorize('update-meter-reading', $existing);
-        } else {
-            Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
+        try {
+            if ($existing) {
+                Gate::authorize('update-meter-reading', $existing);
+            } else {
+                Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
+            }
+        } catch (AuthorizationException) {
+            session()->flash('reading_error', 'Нет прав на сохранение за этот период. Если включён тест окна (WATER_SUBMISSION_WINDOW_BYPASS), выполните на сервере: php artisan config:clear');
+
+            return;
         }
 
         $this->validate([
@@ -125,7 +134,9 @@ class Dashboard extends Component
     {
         $user = auth()->user();
         if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
-            abort(403);
+            session()->flash('reading_error', 'Распознавание с фото доступно только жильцу с назначенной квартирой. Войдите под учётной записью жильца для теста OCR.');
+
+            return;
         }
 
         $apartment = $user->apartment()->with('building')->first();
@@ -149,10 +160,16 @@ class Dashboard extends Component
             ->where('month', $period['month'])
             ->first();
 
-        if ($existing) {
-            Gate::authorize('update-meter-reading', $existing);
-        } else {
-            Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
+        try {
+            if ($existing) {
+                Gate::authorize('update-meter-reading', $existing);
+            } else {
+                Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
+            }
+        } catch (AuthorizationException) {
+            session()->flash('reading_error', 'Нет прав на ввод показаний за этот период. После смены .env выполните: php artisan config:clear');
+
+            return;
         }
 
         $this->validate([

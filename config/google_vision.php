@@ -16,7 +16,10 @@ return [
     |
     */
 
-    'enabled' => env('GOOGLE_VISION_ENABLED', false),
+    'enabled' => filter_var(
+        env('GOOGLE_VISION_ENABLED', false),
+        FILTER_VALIDATE_BOOLEAN,
+    ),
 
     'credentials_path' => env('GOOGLE_APPLICATION_CREDENTIALS', ''),
 

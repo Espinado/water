@@ -22,6 +22,9 @@ return [
     | по текущему календарному месяцу, форма показаний не скрывается после сдачи.
     | На продакшене держите false.
     */
-    'submission_window_bypass' => env('WATER_SUBMISSION_WINDOW_BYPASS', false),
+    'submission_window_bypass' => filter_var(
+        env('WATER_SUBMISSION_WINDOW_BYPASS', false),
+        FILTER_VALIDATE_BOOLEAN,
+    ),
 
 ];
