@@ -36,6 +36,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'apartment_id' => 'integer',
             'role' => UserRole::class,
             'access_suspended_at' => 'datetime',
             'invitation_sent_at' => 'datetime',

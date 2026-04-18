@@ -27,4 +27,14 @@ return [
         FILTER_VALIDATE_BOOLEAN,
     ),
 
+    /*
+    | Полный обход проверки «окна» в Gate (тесты на сервере, если кэш конфига
+    | или даты всё равно мешают). true — жилец с своей квартирой может вносить
+    | показания без учёта дат; на проде — false.
+    */
+    'meter_reading_gate_bypass' => filter_var(
+        env('WATER_METER_READING_GATE_BYPASS', false),
+        FILTER_VALIDATE_BOOLEAN,
+    ),
+
 ];

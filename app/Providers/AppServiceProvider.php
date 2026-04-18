@@ -53,8 +53,15 @@ class AppServiceProvider extends ServiceProvider
             if ($user->isManager()) {
                 return true;
             }
-            if (! $user->isResident() || $user->apartment_id !== $apartment->id) {
+            if (! $user->isResident()) {
                 return false;
+            }
+            if ((int) $user->apartment_id !== (int) $apartment->id) {
+                return false;
+            }
+
+            if (config('water.meter_reading_gate_bypass') || config('water.submission_window_bypass')) {
+                return true;
             }
 
             return app(MeterSubmissionWindow::class)->isOpenForResident($year, $month);
@@ -64,8 +71,15 @@ class AppServiceProvider extends ServiceProvider
             if ($user->isManager()) {
                 return true;
             }
-            if (! $user->isResident() || $user->apartment_id !== $reading->apartment_id) {
+            if (! $user->isResident()) {
                 return false;
+            }
+            if ((int) $user->apartment_id !== (int) $reading->apartment_id) {
+                return false;
+            }
+
+            if (config('water.meter_reading_gate_bypass') || config('water.submission_window_bypass')) {
+                return true;
             }
 
             return app(MeterSubmissionWindow::class)->isOpenForResident($reading->year, $reading->month);
