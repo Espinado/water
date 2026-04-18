@@ -23,9 +23,14 @@ class MeterPhotoOcrService
             return $this->ocrResult(null, null, 'Распознавание отключено. Включите GOOGLE_VISION_ENABLED и укажите ключ в GOOGLE_APPLICATION_CREDENTIALS.');
         }
 
-        $path = (string) config('google_vision.credentials_path');
-        if ($path === '' || ! is_readable($path)) {
-            return $this->ocrResult(null, null, 'Не найден файл ключа Google (GOOGLE_APPLICATION_CREDENTIALS).');
+        $path = $this->resolveGoogleCredentialsPath();
+        if ($path === '') {
+            return $this->ocrResult(
+                null,
+                null,
+                'Не найден или не читается файл ключа Google. В .env задайте GOOGLE_APPLICATION_CREDENTIALS абсолютным путём '
+                .'(например: '.storage_path('app/private/ваш-ключ.json').'), положите JSON в storage/app/private/ и проверьте права chmod для пользователя веб-сервера.',
+            );
         }
 
         $json = json_decode((string) file_get_contents($path), true);
@@ -75,6 +80,48 @@ class MeterPhotoOcrService
     /**
      * @return array{cold: ?string, hot: ?string, hint: string, raw_snippet: ?string}
      */
+    /**
+     * Абсолютный путь к JSON ключу или пустая строка.
+     */
+    protected function resolveGoogleCredentialsPath(): string
+    {
+        $raw = trim((string) config('google_vision.credentials_path'));
+        if ($raw === '') {
+            return '';
+        }
+
+        $normalized = str_replace('\\', DIRECTORY_SEPARATOR, $raw);
+        $privateDir = storage_path('app'.DIRECTORY_SEPARATOR.'private');
+        $fileName = basename($normalized);
+
+        $candidates = [$normalized];
+
+        if (! $this->isAbsoluteFilesystemPath($normalized)) {
+            $candidates[] = base_path(str_replace('/', DIRECTORY_SEPARATOR, ltrim($raw, '/')));
+        }
+
+        $candidates[] = $privateDir.DIRECTORY_SEPARATOR.$fileName;
+
+        $candidates = array_unique(array_filter($candidates));
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && is_file($candidate) && is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    protected function isAbsoluteFilesystemPath(string $path): bool
+    {
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\')) {
+            return true;
+        }
+
+        return (bool) preg_match('/^[A-Za-z]:[\\\\\\/]/', $path);
+    }
+
     protected function ocrResult(?string $cold, ?string $hot, string $hint, ?string $rawSnippet = null): array
     {
         return [
