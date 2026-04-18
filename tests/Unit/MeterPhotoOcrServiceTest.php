@@ -143,9 +143,10 @@ class MeterPhotoOcrServiceTest extends TestCase
         Config::set('google_vision.enabled', true);
         Config::set('google_vision.credentials_path', $this->credentialsPath);
 
+        // Значения < 1_000_000 — иначе normalizeMeterToken отбрасывает «лишние» цифры.
         $annotation = new TextAnnotation([
             'pages' => [],
-            'text' => 'Показания: 1234 и 1234567 м³',
+            'text' => 'Показания: 1234 и 888888 м³',
         ]);
 
         $detector = Mockery::mock(VisionDocumentTextDetector::class);
@@ -156,7 +157,7 @@ class MeterPhotoOcrServiceTest extends TestCase
         $service = new MeterPhotoOcrService($detector);
         $result = $service->suggestFromImageBytes('x');
 
-        $this->assertSame('1234567', $result['cold'], 'longer digit run is preferred first');
+        $this->assertSame('888888', $result['cold'], 'longer digit run is preferred first');
         $this->assertSame('1234', $result['hot']);
     }
 

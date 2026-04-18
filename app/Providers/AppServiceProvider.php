@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\GoogleCloudVisionDocumentTextDetector;
 use App\Services\MeterSubmissionWindow;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // MySQL/MariaDB (utf8mb4): индекс по varchar(255) > 1000 байт — см. SQLSTATE 1071.
+        Schema::defaultStringLength(191);
+
         Gate::define('record-meter-reading', function (User $user, Apartment $apartment, int $year, int $month) {
             if ($user->isManager()) {
                 return true;

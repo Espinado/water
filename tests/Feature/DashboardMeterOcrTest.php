@@ -80,6 +80,7 @@ class DashboardMeterOcrTest extends TestCase
             ->assertSet('cold_m3', '10')
             ->assertSet('hot_m3', '20')
             ->assertSet('meterPhoto', null)
-            ->assertSessionHas('reading_ocr_hint');
+            // Flash не всегда виден assertSessionHas на ответе Livewire; подсказка рендерится в разметке.
+            ->assertSee('Подставлены первые два числа');
     }
 }
