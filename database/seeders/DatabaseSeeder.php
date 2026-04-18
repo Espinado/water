@@ -2,12 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Enums\UserRole;
 use App\Models\Apartment;
 use App\Models\Building;
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -25,13 +22,6 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        User::query()->create([
-            'name' => 'Управляющий',
-            'email' => 'manager@water.test',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
-            'role' => UserRole::Manager,
-            'apartment_id' => null,
-        ]);
+        $this->call(DevManagerSeeder::class);
     }
 }
