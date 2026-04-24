@@ -234,4 +234,23 @@ class MeterPhotoOcrServiceTest extends TestCase
 
         $this->assertSame('80.792', $result['value']);
     }
+
+    public function test_single_extract_joins_per_digit_ocr_runs_to_five_plus_three(): void
+    {
+        Config::set('google_vision.enabled', true);
+        Config::set('google_vision.credentials_path', $this->credentialsPath);
+
+        $annotation = new TextAnnotation([
+            'pages' => [],
+            'text' => '006929;11 CE 0 0 4 6 2 4 1 2 m³',
+        ]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->once()->andReturn(['annotation' => $annotation, 'error' => null]);
+
+        $service = new MeterPhotoOcrService($detector);
+        $result = $service->suggestSingleFromImageBytes('x', 'ХВС');
+
+        $this->assertSame('462.412', $result['value']);
+    }
 }
