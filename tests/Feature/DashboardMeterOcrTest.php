@@ -51,18 +51,23 @@ class DashboardMeterOcrTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_recognize_meter_from_photo_uses_mocked_vision_and_fills_fields(): void
+    public function test_recognize_cold_and_hot_meters_from_separate_photos(): void
     {
-        $annotation = VisionAnnotationTestData::textAnnotationFromMeterWords([
+        $coldAnnotation = VisionAnnotationTestData::textAnnotationFromMeterWords([
             ['text' => '10', 'x' => 5],
-            ['text' => '20', 'x' => 100],
-        ]);
+        ], plainText: '00010 m3');
+        $hotAnnotation = VisionAnnotationTestData::textAnnotationFromMeterWords([
+            ['text' => '20', 'x' => 5],
+        ], plainText: '00020 m3');
 
         $mock = Mockery::mock(VisionDocumentTextDetector::class);
         $mock->shouldReceive('detect')
-            ->once()
+            ->twice()
             ->with(Mockery::type('string'), Mockery::type('array'))
-            ->andReturn(['annotation' => $annotation, 'error' => null]);
+            ->andReturn(
+                ['annotation' => $coldAnnotation, 'error' => null],
+                ['annotation' => $hotAnnotation, 'error' => null],
+            );
 
         $this->app->instance(VisionDocumentTextDetector::class, $mock);
 
@@ -75,12 +80,14 @@ class DashboardMeterOcrTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(Dashboard::class)
-            ->set('meterPhoto', UploadedFile::fake()->image('meters.jpg', 20, 20))
-            ->call('recognizeMeterFromPhoto')
+            ->set('coldMeterPhoto', UploadedFile::fake()->image('cold.jpg', 20, 20))
+            ->call('recognizeColdMeterFromPhoto')
             ->assertSet('cold_m3', '10')
+            ->assertSet('coldMeterPhoto', null)
+            ->set('hotMeterPhoto', UploadedFile::fake()->image('hot.jpg', 20, 20))
+            ->call('recognizeHotMeterFromPhoto')
             ->assertSet('hot_m3', '20')
-            ->assertSet('meterPhoto', null)
-            // Flash не всегда виден assertSessionHas на ответе Livewire; подсказка рендерится в разметке.
-            ->assertSee('Подставлены первые два числа');
+            ->assertSet('hotMeterPhoto', null)
+            ->assertSee('Подставлено распознанное значение');
     }
 }

@@ -83,29 +83,54 @@
                                                 <x-input-error :messages="$errors->get('hot_m3')" class="mt-1" />
                                             </div>
                                             <div class="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
-                                                <p class="text-sm font-semibold text-gray-900">Распознать с фото</p>
-                                                <p class="text-sm leading-relaxed text-gray-600">Сфотографируйте табло счётчиков (оба в кадре — удобнее слева направо). После распознавания проверьте цифры перед сохранением.</p>
-                                                <div>
+                                                <p class="text-sm font-semibold text-gray-900">Распознать по фото (раздельно)</p>
+                                                <p class="text-sm leading-relaxed text-gray-600">Загрузите фото ХВС и ГВС отдельно. Это нужно, когда счётчики находятся далеко друг от друга.</p>
+
+                                                <div class="space-y-3 rounded-xl border border-sky-100 bg-white p-3 sm:p-4">
+                                                    <p class="text-sm font-medium text-gray-900">Фото ХВС</p>
                                                     <input
-                                                        wire:model="meterPhoto"
-                                                        id="meter_photo"
+                                                        wire:model="coldMeterPhoto"
+                                                        id="cold_meter_photo"
                                                         type="file"
                                                         accept="image/*"
-                                                        class="block w-full min-h-[48px] cursor-pointer text-base text-gray-800 file:mr-0 file:inline-flex file:min-h-[48px] file:w-full file:cursor-pointer file:items-center file:justify-center file:rounded-xl file:border-0 file:bg-indigo-600 file:px-4 file:py-3 file:text-sm file:font-semibold file:text-white hover:file:bg-indigo-500 sm:file:mr-4 sm:file:w-auto sm:file:px-4 sm:file:py-2.5 sm:file:text-xs"
+                                                        class="block w-full min-h-[48px] cursor-pointer text-base text-gray-800 file:mr-0 file:inline-flex file:min-h-[48px] file:w-full file:cursor-pointer file:items-center file:justify-center file:rounded-xl file:border-0 file:bg-sky-600 file:px-4 file:py-3 file:text-sm file:font-semibold file:text-white hover:file:bg-sky-500 sm:file:mr-4 sm:file:w-auto sm:file:px-4 sm:file:py-2.5 sm:file:text-xs"
                                                     />
-                                                    <x-input-error :messages="$errors->get('meterPhoto')" class="mt-2" />
+                                                    <x-input-error :messages="$errors->get('coldMeterPhoto')" class="mt-1" />
+                                                    <div wire:loading wire:target="coldMeterPhoto" class="text-xs text-gray-500">Загрузка фото ХВС…</div>
+                                                    <button
+                                                        type="button"
+                                                        wire:click="recognizeColdMeterFromPhoto"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="coldMeterPhoto,recognizeColdMeterFromPhoto"
+                                                        class="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:min-h-0 sm:inline-flex sm:w-auto sm:py-2 sm:text-xs sm:uppercase sm:tracking-widest"
+                                                    >
+                                                        <span wire:loading.remove wire:target="recognizeColdMeterFromPhoto">Распознать ХВС</span>
+                                                        <span wire:loading wire:target="recognizeColdMeterFromPhoto">Запрос к Vision…</span>
+                                                    </button>
                                                 </div>
-                                                <div wire:loading wire:target="meterPhoto" class="text-xs text-gray-500">Загрузка файла…</div>
-                                                <button
-                                                    type="button"
-                                                    wire:click="recognizeMeterFromPhoto"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="meterPhoto,recognizeMeterFromPhoto"
-                                                    class="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:min-h-0 sm:inline-flex sm:w-auto sm:py-2 sm:text-xs sm:uppercase sm:tracking-widest"
-                                                >
-                                                    <span wire:loading.remove wire:target="recognizeMeterFromPhoto">Распознать</span>
-                                                    <span wire:loading wire:target="recognizeMeterFromPhoto">Запрос к Vision…</span>
-                                                </button>
+
+                                                <div class="space-y-3 rounded-xl border border-rose-100 bg-white p-3 sm:p-4">
+                                                    <p class="text-sm font-medium text-gray-900">Фото ГВС</p>
+                                                    <input
+                                                        wire:model="hotMeterPhoto"
+                                                        id="hot_meter_photo"
+                                                        type="file"
+                                                        accept="image/*"
+                                                        class="block w-full min-h-[48px] cursor-pointer text-base text-gray-800 file:mr-0 file:inline-flex file:min-h-[48px] file:w-full file:cursor-pointer file:items-center file:justify-center file:rounded-xl file:border-0 file:bg-rose-600 file:px-4 file:py-3 file:text-sm file:font-semibold file:text-white hover:file:bg-rose-500 sm:file:mr-4 sm:file:w-auto sm:file:px-4 sm:file:py-2.5 sm:file:text-xs"
+                                                    />
+                                                    <x-input-error :messages="$errors->get('hotMeterPhoto')" class="mt-1" />
+                                                    <div wire:loading wire:target="hotMeterPhoto" class="text-xs text-gray-500">Загрузка фото ГВС…</div>
+                                                    <button
+                                                        type="button"
+                                                        wire:click="recognizeHotMeterFromPhoto"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="hotMeterPhoto,recognizeHotMeterFromPhoto"
+                                                        class="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:min-h-0 sm:inline-flex sm:w-auto sm:py-2 sm:text-xs sm:uppercase sm:tracking-widest"
+                                                    >
+                                                        <span wire:loading.remove wire:target="recognizeHotMeterFromPhoto">Распознать ГВС</span>
+                                                        <span wire:loading wire:target="recognizeHotMeterFromPhoto">Запрос к Vision…</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <x-primary-button type="submit" class="!flex min-h-[48px] w-full justify-center sm:!inline-flex sm:w-auto sm:min-h-0">
                                                 Сохранить показания

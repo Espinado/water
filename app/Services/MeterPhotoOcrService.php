@@ -19,27 +19,8 @@ class MeterPhotoOcrService
      */
     public function suggestFromImageBytes(string $imageBinary): array
     {
-        if (! config('google_vision.enabled')) {
-            return $this->ocrResult(null, null, 'Распознавание отключено. Включите GOOGLE_VISION_ENABLED и укажите ключ в GOOGLE_APPLICATION_CREDENTIALS.');
-        }
-
-        $path = $this->resolveGoogleCredentialsPath();
-        if ($path === '') {
-            return $this->ocrResult(
-                null,
-                null,
-                'Не найден или не читается файл ключа Google. В .env задайте GOOGLE_APPLICATION_CREDENTIALS абсолютным путём '
-                .'(например: '.storage_path('app/private/ваш-ключ.json').'), положите JSON в storage/app/private/ и проверьте права chmod для пользователя веб-сервера.',
-            );
-        }
-
-        $json = json_decode((string) file_get_contents($path), true);
-        if (! is_array($json)) {
-            return $this->ocrResult(null, null, 'Файл ключа Google не является корректным JSON.');
-        }
-
         try {
-            $detected = $this->documentTextDetector->detect($imageBinary, $json);
+            $detected = $this->detectAnnotationFromImage($imageBinary);
 
             if ($detected['error'] !== null) {
                 return $this->ocrResult(null, null, $detected['error']);
@@ -78,8 +59,58 @@ class MeterPhotoOcrService
     }
 
     /**
-     * @return array{cold: ?string, hot: ?string, hint: string, raw_snippet: ?string}
+     * Для раздельной загрузки: один счётчик (ХВС/ГВС) — одно фото.
+     *
+     * @return array{value: ?string, hint: string, raw_snippet: ?string}
      */
+    public function suggestSingleFromImageBytes(string $imageBinary, string $label = 'счётчика'): array
+    {
+        try {
+            $detected = $this->detectAnnotationFromImage($imageBinary);
+            if ($detected['error'] !== null) {
+                return [
+                    'value' => null,
+                    'hint' => $detected['error'],
+                    'raw_snippet' => null,
+                ];
+            }
+
+            $annotation = $detected['annotation'];
+            if ($annotation === null) {
+                return [
+                    'value' => null,
+                    'hint' => 'На фото не найден текст. Сделайте снимок табло крупнее и без бликов.',
+                    'raw_snippet' => null,
+                ];
+            }
+
+            $single = $this->extractSingleMeterValue($annotation);
+            if ($single === null) {
+                $snippet = mb_substr($annotation->getText(), 0, 200);
+
+                return [
+                    'value' => null,
+                    'hint' => 'Не удалось уверенно распознать показание '.$label.'. Введите значение вручную.',
+                    'raw_snippet' => $snippet !== '' ? $snippet : null,
+                ];
+            }
+
+            return [
+                'value' => $single,
+                'hint' => 'Подставлено распознанное значение '.$label.'. Проверьте перед сохранением.',
+                'raw_snippet' => null,
+            ];
+        } catch (Throwable $e) {
+            Log::warning('Single meter OCR failed', ['exception' => $e]);
+
+            return [
+                'value' => null,
+                'hint' => 'Ошибка распознавания: '.$e->getMessage(),
+                'raw_snippet' => null,
+            ];
+        }
+    }
+
     /**
      * Абсолютный путь к JSON ключу или пустая строка.
      */
@@ -177,6 +208,81 @@ class MeterPhotoOcrService
         }
 
         return $out;
+    }
+
+    /**
+     * Подбирает одно наилучшее значение с табло.
+     */
+    protected function extractSingleMeterValue(TextAnnotation $annotation): ?string
+    {
+        $nearM3 = $this->valueNearM3($annotation->getText());
+        if ($nearM3 !== null) {
+            return $nearM3;
+        }
+
+        $ordered = $this->orderedMeterValuesFromAnnotation($annotation);
+        foreach ($ordered as $value) {
+            $digits = strlen(str_replace('.', '', $value));
+            if ($digits >= 3) {
+                return $value;
+            }
+        }
+
+        return $ordered[0] ?? null;
+    }
+
+    protected function valueNearM3(string $text): ?string
+    {
+        $text = preg_replace('/\s+/u', ' ', str_replace(["\r", "\n", "\t"], ' ', $text)) ?? $text;
+
+        if (preg_match('/([0-9][0-9\s.,]{2,})\s*m\s*3/iu', $text, $m)) {
+            $chunk = trim($m[1]);
+            // Частый формат OCR: "00080 792 m3" => трактуем как 00080.792
+            if (preg_match('/^(\d{3,8})\s+(\d{1,3})$/', $chunk, $parts)) {
+                return $this->normalizeMeterToken($parts[1].'.'.$parts[2]);
+            }
+
+            $compact = preg_replace('/\s+/u', '', $chunk) ?? $chunk;
+            if (preg_match('/\d{3,8}(?:[.,]\d{1,3})?/', $compact, $num)) {
+                return $this->normalizeMeterToken($num[0]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{annotation: ?TextAnnotation, error: ?string}
+     */
+    protected function detectAnnotationFromImage(string $imageBinary): array
+    {
+        if (! config('google_vision.enabled')) {
+            return [
+                'annotation' => null,
+                'error' => 'Распознавание отключено. Включите GOOGLE_VISION_ENABLED и укажите ключ в GOOGLE_APPLICATION_CREDENTIALS.',
+            ];
+        }
+
+        $path = $this->resolveGoogleCredentialsPath();
+        if ($path === '') {
+            return [
+                'annotation' => null,
+                'error' => 'Не найден или не читается файл ключа Google. В .env задайте GOOGLE_APPLICATION_CREDENTIALS абсолютным путём '
+                    .'(например: '.storage_path('app/private/ваш-ключ.json').'), положите JSON в storage/app/private/ и проверьте права chmod для пользователя веб-сервера.',
+            ];
+        }
+
+        $json = json_decode((string) file_get_contents($path), true);
+        if (! is_array($json)) {
+            return ['annotation' => null, 'error' => 'Файл ключа Google не является корректным JSON.'];
+        }
+
+        $detected = $this->documentTextDetector->detect($imageBinary, $json);
+        if ($detected['error'] !== null) {
+            return ['annotation' => null, 'error' => $detected['error']];
+        }
+
+        return ['annotation' => $detected['annotation'], 'error' => null];
     }
 
     /**

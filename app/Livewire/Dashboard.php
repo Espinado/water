@@ -30,7 +30,10 @@ class Dashboard extends Component
     public string $hot_m3 = '';
 
     /** @var TemporaryUploadedFile|null */
-    public $meterPhoto = null;
+    public $coldMeterPhoto = null;
+
+    /** @var TemporaryUploadedFile|null */
+    public $hotMeterPhoto = null;
 
     public string $historySearch = '';
 
@@ -130,71 +133,14 @@ class Dashboard extends Component
         session()->flash('reading_status', 'Показания сохранены.');
     }
 
-    public function recognizeMeterFromPhoto(): void
+    public function recognizeColdMeterFromPhoto(): void
     {
-        $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
-            session()->flash('reading_error', 'Распознавание с фото доступно только жильцу с назначенной квартирой. Войдите под учётной записью жильца для теста OCR.');
+        $this->recognizeSingleMeterFromPhoto('cold');
+    }
 
-            return;
-        }
-
-        $apartment = $user->apartment()->with('building')->first();
-        if (! $apartment) {
-            session()->flash('reading_error', 'Квартира не назначена. Обратитесь к управляющему.');
-
-            return;
-        }
-
-        $window = app(MeterSubmissionWindow::class);
-        $period = $window->residentActionablePeriodAt();
-        if (! $period) {
-            session()->flash('reading_error', 'Сейчас не период приёма показаний (с 25-го по 10-е число).');
-
-            return;
-        }
-
-        $existing = MeterReading::query()
-            ->where('apartment_id', $apartment->id)
-            ->where('year', $period['year'])
-            ->where('month', $period['month'])
-            ->first();
-
-        try {
-            if ($existing) {
-                Gate::authorize('update-meter-reading', $existing);
-            } else {
-                Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
-            }
-        } catch (AuthorizationException) {
-            session()->flash('reading_error', 'Нет прав на ввод показаний за этот период. После смены .env выполните: php artisan config:clear');
-
-            return;
-        }
-
-        $this->validate([
-            'meterPhoto' => ['required', 'image', 'max:10240'],
-        ], [], [
-            'meterPhoto' => 'фото счётчика',
-        ]);
-
-        if (! $this->meterPhoto instanceof TemporaryUploadedFile) {
-            session()->flash('reading_error', 'Не удалось загрузить файл.');
-
-            return;
-        }
-
-        $result = app(MeterPhotoOcrService::class)->suggestFromImageBytes($this->meterPhoto->get());
-
-        if ($result['cold'] !== null) {
-            $this->cold_m3 = $result['cold'];
-        }
-        if ($result['hot'] !== null) {
-            $this->hot_m3 = $result['hot'];
-        }
-
-        session()->flash('reading_ocr_hint', $result['hint']);
-        $this->reset('meterPhoto');
+    public function recognizeHotMeterFromPhoto(): void
+    {
+        $this->recognizeSingleMeterFromPhoto('hot');
     }
 
     public function updatedHistorySearch(): void
@@ -378,5 +324,78 @@ class Dashboard extends Component
     public function render(): View
     {
         return view('livewire.dashboard');
+    }
+
+    protected function recognizeSingleMeterFromPhoto(string $type): void
+    {
+        $user = auth()->user();
+        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+            session()->flash('reading_error', 'Распознавание с фото доступно только жильцу с назначенной квартирой. Войдите под учётной записью жильца для теста OCR.');
+
+            return;
+        }
+
+        $apartment = $user->apartment()->with('building')->first();
+        if (! $apartment) {
+            session()->flash('reading_error', 'Квартира не назначена. Обратитесь к управляющему.');
+
+            return;
+        }
+
+        $window = app(MeterSubmissionWindow::class);
+        $period = $window->residentActionablePeriodAt();
+        if (! $period) {
+            session()->flash('reading_error', 'Сейчас не период приёма показаний (с 25-го по 10-е число).');
+
+            return;
+        }
+
+        $existing = MeterReading::query()
+            ->where('apartment_id', $apartment->id)
+            ->where('year', $period['year'])
+            ->where('month', $period['month'])
+            ->first();
+
+        try {
+            if ($existing) {
+                Gate::authorize('update-meter-reading', $existing);
+            } else {
+                Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
+            }
+        } catch (AuthorizationException) {
+            session()->flash('reading_error', 'Нет прав на ввод показаний за этот период. После смены .env выполните: php artisan config:clear');
+
+            return;
+        }
+
+        $photoProperty = $type === 'cold' ? 'coldMeterPhoto' : 'hotMeterPhoto';
+        $fieldLabel = $type === 'cold' ? 'фото счётчика ХВС' : 'фото счётчика ГВС';
+
+        $this->validate([
+            $photoProperty => ['required', 'image', 'max:10240'],
+        ], [], [
+            $photoProperty => $fieldLabel,
+        ]);
+
+        $file = $this->{$photoProperty};
+        if (! $file instanceof TemporaryUploadedFile) {
+            session()->flash('reading_error', 'Не удалось загрузить файл.');
+
+            return;
+        }
+
+        $label = $type === 'cold' ? 'ХВС' : 'ГВС';
+        $result = app(MeterPhotoOcrService::class)->suggestSingleFromImageBytes($file->get(), $label);
+
+        if ($result['value'] !== null) {
+            if ($type === 'cold') {
+                $this->cold_m3 = $result['value'];
+            } else {
+                $this->hot_m3 = $result['value'];
+            }
+        }
+
+        session()->flash('reading_ocr_hint', $result['hint']);
+        $this->reset($photoProperty);
     }
 }
