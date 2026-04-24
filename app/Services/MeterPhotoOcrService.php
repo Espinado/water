@@ -215,7 +215,14 @@ class MeterPhotoOcrService
      */
     protected function extractSingleMeterValue(TextAnnotation $annotation): ?string
     {
-        $nearM3 = $this->valueNearM3($annotation->getText());
+        $text = $annotation->getText();
+
+        $dial = $this->extractFivePlusThreeFromPlainText($text);
+        if ($dial !== null) {
+            return $dial;
+        }
+
+        $nearM3 = $this->valueNearM3($text);
         if ($nearM3 !== null) {
             return $nearM3;
         }
@@ -231,12 +238,88 @@ class MeterPhotoOcrService
         return $ordered[0] ?? null;
     }
 
+    /**
+     * Табло: 5 чёрных цифр + 3 красных (дробная часть). OCR часто даёт «00462,412» или «00080 792» перед m³.
+     * Игнорируем прочие числа (серийник, штрихкод), если нет формата 5+3 у показания.
+     */
+    protected function extractFivePlusThreeFromPlainText(string $text): ?string
+    {
+        $flat = $this->flattenOcrText($text);
+
+        $m3Pos = mb_stripos($flat, 'm3');
+        if ($m3Pos !== false) {
+            $before = mb_substr($flat, max(0, $m3Pos - 60), 60);
+            foreach ($this->fivePlusThreePatterns() as $pattern) {
+                if (preg_match($pattern, $before, $m)) {
+                    $v = $this->normalizeMeterToken($m[1].'.'.$m[2]);
+                    if ($v !== null) {
+                        return $v;
+                    }
+                }
+            }
+        }
+
+        if (preg_match('/\b(\d{5})\s*[,;]\s*(\d{3})\s*m\s*3\b/iu', $flat, $m)) {
+            return $this->normalizeMeterToken($m[1].'.'.$m[2]);
+        }
+        if (preg_match('/\b(\d{5})\s+(\d{3})\s*m\s*3\b/iu', $flat, $m)) {
+            return $this->normalizeMeterToken($m[1].'.'.$m[2]);
+        }
+
+        if (preg_match_all('/\b(\d{5})\s*[,;.]\s*(\d{3})\b/u', $flat, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $v = $this->normalizeMeterToken($m[1].'.'.$m[2]);
+                if ($v !== null) {
+                    return $v;
+                }
+            }
+        }
+
+        if (preg_match_all('/\b(\d{5})\s+(\d{3})\b/u', $flat, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $v = $this->normalizeMeterToken($m[1].'.'.$m[2]);
+                if ($v !== null) {
+                    return $v;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function fivePlusThreePatterns(): array
+    {
+        return [
+            '/(\d{5})\s*[,;.]\s*(\d{3})\s*$/u',
+            '/(\d{5})\s+(\d{3})\s*$/u',
+        ];
+    }
+
+    protected function flattenOcrText(string $text): string
+    {
+        $text = str_replace(["\r", "\n", "\t"], ' ', $text);
+        $text = str_ireplace(['m³', 'M³', 'm３'], 'm3', $text);
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        return trim($text);
+    }
+
     protected function valueNearM3(string $text): ?string
     {
-        $text = preg_replace('/\s+/u', ' ', str_replace(["\r", "\n", "\t"], ' ', $text)) ?? $text;
+        $text = $this->flattenOcrText($text);
 
         if (preg_match('/([0-9][0-9\s.,]{2,})\s*m\s*3/iu', $text, $m)) {
             $chunk = trim($m[1]);
+            // Сначала формат 5 + 3 у маркера m3
+            if (preg_match('/(\d{5})\s*[,;.]\s*(\d{3})\s*$/u', $chunk, $parts)) {
+                return $this->normalizeMeterToken($parts[1].'.'.$parts[2]);
+            }
+            if (preg_match('/(\d{5})\s+(\d{3})\s*$/u', $chunk, $parts)) {
+                return $this->normalizeMeterToken($parts[1].'.'.$parts[2]);
+            }
             // Частый формат OCR: "00080 792 m3" => трактуем как 00080.792
             if (preg_match('/^(\d{3,8})\s+(\d{1,3})$/', $chunk, $parts)) {
                 return $this->normalizeMeterToken($parts[1].'.'.$parts[2]);

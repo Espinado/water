@@ -196,4 +196,42 @@ class MeterPhotoOcrServiceTest extends TestCase
         $this->assertNull($result['hot']);
         $this->assertStringContainsString('одно число', $result['hint']);
     }
+
+    public function test_single_extract_prefers_five_plus_three_dial_before_m3_over_serial(): void
+    {
+        Config::set('google_vision.enabled', true);
+        Config::set('google_vision.credentials_path', $this->credentialsPath);
+
+        $annotation = new TextAnnotation([
+            'pages' => [],
+            'text' => '006929;11 CE M11 00462,412 m³',
+        ]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->once()->andReturn(['annotation' => $annotation, 'error' => null]);
+
+        $service = new MeterPhotoOcrService($detector);
+        $result = $service->suggestSingleFromImageBytes('x', 'ХВС');
+
+        $this->assertSame('462.412', $result['value']);
+    }
+
+    public function test_single_extract_reads_space_between_whole_and_fraction_before_m3(): void
+    {
+        Config::set('google_vision.enabled', true);
+        Config::set('google_vision.credentials_path', $this->credentialsPath);
+
+        $annotation = new TextAnnotation([
+            'pages' => [],
+            'text' => '32279740-2012 PoWoGaz 00080 792 m³',
+        ]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->once()->andReturn(['annotation' => $annotation, 'error' => null]);
+
+        $service = new MeterPhotoOcrService($detector);
+        $result = $service->suggestSingleFromImageBytes('x', 'ГВС');
+
+        $this->assertSame('80.792', $result['value']);
+    }
 }
