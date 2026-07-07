@@ -34,14 +34,11 @@ new class extends Component
                         {{ __('Кабинет') }}
                     </x-nav-link>
                     @if (auth()->user()->isManager())
-                        <x-nav-link :href="route('manager.panel')" :active="request()->routeIs('manager.panel')" wire:navigate>
-                            {{ __('Дома и доступ') }}
+                        <x-nav-link :href="route('manager.setup')" :active="request()->routeIs('manager.setup')" wire:navigate>
+                            {{ __('Управление домами') }}
                         </x-nav-link>
-                        <x-nav-link :href="route('manager.apartments')" :active="request()->routeIs('manager.apartments')" wire:navigate>
-                            {{ __('Квартиры') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings')" wire:navigate>
-                            {{ __('Показания') }}
+                        <x-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings*')" wire:navigate>
+                            {{ __('Управление показаниями') }}
                         </x-nav-link>
                     @endif
                 </div>
@@ -97,14 +94,11 @@ new class extends Component
                 {{ __('Кабинет') }}
             </x-responsive-nav-link>
             @if (auth()->user()->isManager())
-                <x-responsive-nav-link :href="route('manager.panel')" :active="request()->routeIs('manager.panel')" wire:navigate>
-                    {{ __('Дома и доступ') }}
+                <x-responsive-nav-link :href="route('manager.setup')" :active="request()->routeIs('manager.setup')" wire:navigate>
+                    {{ __('Управление домами') }}
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('manager.apartments')" :active="request()->routeIs('manager.apartments')" wire:navigate>
-                    {{ __('Квартиры') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings')" wire:navigate>
-                    {{ __('Показания') }}
+                <x-responsive-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings*')" wire:navigate>
+                    {{ __('Управление показаниями') }}
                 </x-responsive-nav-link>
             @endif
         </div>
@@ -117,7 +111,7 @@ new class extends Component
             </div>
 
             <div class="mt-3 px-4">
-                <x-language-switcher />
+                <x-language-switcher inline />
             </div>
 
             <div class="mt-3 space-y-1">

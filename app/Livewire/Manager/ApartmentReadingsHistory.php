@@ -6,6 +6,10 @@ use App\Models\Apartment;
 use App\Models\MeterReading;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -17,18 +21,115 @@ class ApartmentReadingsHistory extends Component
 
     public Apartment $apartment;
 
-    public string $search = '';
+    public int $filterYear = 0;
+
+    public int $filterMonth = 0;
 
     public string $sortField = 'period';
 
     public bool $sortAsc = false;
 
+    public int $entryYear = 0;
+
+    public int $entryMonth = 0;
+
+    public string $entry_cold = '';
+
+    public string $entry_hot = '';
+
     public function mount(Apartment $apartment): void
     {
-        $this->apartment = $apartment->load('building');
+        $this->apartment = $apartment->load([
+            'building',
+            'users' => fn ($q) => $q->where('role', \App\Enums\UserRole::Resident),
+        ]);
+
+        $latest = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->first();
+
+        $this->filterYear = $latest?->year ?? (int) now()->year;
+        $this->filterMonth = $latest?->month ?? (int) now()->month;
+
+        $this->entryYear = (int) now()->year;
+        $this->entryMonth = (int) now()->month;
+        $this->loadEntryValues();
     }
 
-    public function updatedSearch(): void
+    public function updatedEntryYear(): void
+    {
+        $this->loadEntryValues();
+    }
+
+    public function updatedEntryMonth(): void
+    {
+        $this->loadEntryValues();
+    }
+
+    protected function loadEntryValues(): void
+    {
+        $reading = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->where('year', $this->entryYear)
+            ->where('month', $this->entryMonth)
+            ->first();
+
+        $this->entry_cold = $reading ? (string) $reading->cold_m3 : '';
+        $this->entry_hot = $reading ? (string) $reading->hot_m3 : '';
+        $this->resetValidation();
+    }
+
+    public function saveEntry(): void
+    {
+        Gate::authorize('record-meter-reading', [$this->apartment, $this->entryYear, $this->entryMonth]);
+
+        Validator::make(
+            [
+                'entry_cold' => $this->entry_cold,
+                'entry_hot' => $this->entry_hot,
+            ],
+            [
+                'entry_cold' => ['required', 'numeric', 'min:0'],
+                'entry_hot' => ['required', 'numeric', 'min:0'],
+            ],
+            [],
+            ['entry_cold' => __('холодная вода'), 'entry_hot' => __('горячая вода')],
+        )->validate();
+
+        MeterReading::query()->updateOrCreate(
+            [
+                'apartment_id' => $this->apartment->id,
+                'year' => $this->entryYear,
+                'month' => $this->entryMonth,
+            ],
+            [
+                'cold_m3' => $this->entry_cold,
+                'hot_m3' => $this->entry_hot,
+                'recorded_by_user_id' => auth()->id(),
+                'entered_by_manager' => true,
+            ],
+        );
+
+        $this->filterYear = $this->entryYear;
+        $this->filterMonth = $this->entryMonth;
+        $this->resetPage();
+
+        session()->flash('reading_saved', __('Показания сохранены за :period.', [
+            'period' => \Carbon\Carbon::create($this->entryYear, $this->entryMonth, 1)
+                ->locale(app()->getLocale())
+                ->translatedFormat('F Y'),
+        ]));
+    }
+
+    public function updatedFilterYear(): void
+    {
+        $this->filterMonth = $this->defaultMonthForYear($this->filterYear);
+        $this->resetPage();
+    }
+
+    public function updatedFilterMonth(): void
     {
         $this->resetPage();
     }
@@ -39,30 +140,62 @@ class ApartmentReadingsHistory extends Component
             $this->sortAsc = ! $this->sortAsc;
         } else {
             $this->sortField = $field;
-            $this->sortAsc = true;
+            $this->sortAsc = $field === 'period' ? false : true;
         }
 
         $this->resetPage();
     }
 
+    #[Computed]
+    public function resident(): ?\App\Models\User
+    {
+        return $this->apartment->users->first();
+    }
+
+    #[Computed]
+    public function availableYears(): Collection
+    {
+        $years = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year')
+            ->map(fn ($year) => (int) $year);
+
+        if ($years->isEmpty()) {
+            return collect([(int) now()->year]);
+        }
+
+        if ($this->filterYear > 0 && ! $years->contains($this->filterYear)) {
+            $years->push($this->filterYear);
+        }
+
+        return $years->unique()->sortDesc()->values();
+    }
+
     public function getRowsProperty(): LengthAwarePaginator
     {
-        $query = MeterReading::query()->where('apartment_id', $this->apartment->id);
-
-        if ($this->search !== '') {
-            $s = '%'.addcslashes($this->search, '%_\\').'%';
-            $query->whereRaw("CONCAT(year, '-', LPAD(month, 2, '0')) like ?", [$s]);
-        }
+        $query = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->where('year', $this->filterYear)
+            ->where('month', $this->filterMonth);
 
         $dir = $this->sortAsc ? 'asc' : 'desc';
 
         match ($this->sortField) {
-            'cold' => $query->orderBy('cold_m3', $dir),
-            'hot' => $query->orderBy('hot_m3', $dir),
+            'cold' => $query->orderBy('cold_m3', $dir)->orderByDesc('year')->orderByDesc('month'),
+            'hot' => $query->orderBy('hot_m3', $dir)->orderByDesc('year')->orderByDesc('month'),
             default => $query->orderBy('year', $dir)->orderBy('month', $dir),
         };
 
-        return $query->paginate(20);
+        return $query->paginate(12);
+    }
+
+    public function periodLabel(MeterReading $row): string
+    {
+        return \Carbon\Carbon::create($row->year, $row->month, 1)
+            ->locale(app()->getLocale())
+            ->translatedFormat('F Y');
     }
 
     public function consumptionFor(MeterReading $row, string $field): string
@@ -97,6 +230,25 @@ class ApartmentReadingsHistory extends Component
         }
 
         return [$year, $month];
+    }
+
+    protected function defaultMonthForYear(int $year): int
+    {
+        $month = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->where('year', $year)
+            ->orderByDesc('month')
+            ->value('month');
+
+        if ($month !== null) {
+            return (int) $month;
+        }
+
+        if ($year === (int) now()->year) {
+            return (int) now()->month;
+        }
+
+        return 1;
     }
 
     public function render(): View

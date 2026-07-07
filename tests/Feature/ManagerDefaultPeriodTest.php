@@ -13,6 +13,12 @@ class ManagerDefaultPeriodTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        session()->flush();
+    }
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();

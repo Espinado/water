@@ -10,11 +10,20 @@ class ManagerAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_manager_can_open_manager_panel(): void
+    public function test_manager_can_open_manager_dashboard(): void
     {
         $manager = User::factory()->manager()->create();
 
         $response = $this->actingAs($manager)->get('/manager');
+
+        $response->assertOk();
+    }
+
+    public function test_manager_can_open_setup_panel(): void
+    {
+        $manager = User::factory()->manager()->create();
+
+        $response = $this->actingAs($manager)->get('/manager/setup');
 
         $response->assertOk();
     }

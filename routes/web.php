@@ -4,6 +4,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\Manager\ApartmentReadingsHistory;
 use App\Livewire\Manager\ApartmentTable;
 use App\Livewire\Manager\HouseholdPanel;
+use App\Livewire\Manager\ManagerDashboard;
 use App\Livewire\Manager\MeterReadings;
 use App\Http\Controllers\LocaleController;
 use Illuminate\Support\Facades\Route;
@@ -18,7 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('profile', 'profile')->name('profile');
 
     Route::middleware('manager')->group(function () {
-        Route::get('manager', HouseholdPanel::class)->name('manager.panel');
+        Route::get('manager', ManagerDashboard::class)->name('manager.dashboard');
+        Route::get('manager/setup', HouseholdPanel::class)->name('manager.setup');
         Route::get('manager/apartments', ApartmentTable::class)->name('manager.apartments');
         Route::get('manager/readings', MeterReadings::class)->name('manager.readings');
         Route::get('manager/readings/apartment/{apartment}', ApartmentReadingsHistory::class)->name('manager.readings.apartment');

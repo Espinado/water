@@ -29,4 +29,9 @@
     .resident-mobile-pad {
         padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
     }
+
+    /* Управляющий с телефона: запас под нижнюю панель */
+    .manager-mobile-pad {
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    }
 }

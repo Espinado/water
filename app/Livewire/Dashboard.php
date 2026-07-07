@@ -6,6 +6,7 @@ use App\Models\Apartment;
 use App\Models\MeterReading;
 use App\Models\User;
 use App\Services\MeterPhotoOcrService;
+use App\Services\MeterReadingSubmissionNotifier;
 use App\Services\MeterSubmissionWindow;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -130,7 +131,20 @@ class Dashboard extends Component
             ],
         );
 
+        app(MeterReadingSubmissionNotifier::class)->notify(
+            $apartment,
+            $period['year'],
+            $period['month'],
+            enteredByManager: false,
+        );
+
         session()->flash('reading_status', __('Показания сохранены.'));
+
+        // Сбрасываем кэш computed-свойств, чтобы в рабочем режиме блок ввода
+        // скрылся сразу после сохранения (повторная сдача деактивируется).
+        // В тестовом режиме residentSubmittedForCurrentPeriod всегда false,
+        // поэтому блок остаётся активным.
+        unset($this->residentCurrentReading, $this->residentSubmittedForCurrentPeriod);
     }
 
     public function updatedColdMeterPhoto(): void

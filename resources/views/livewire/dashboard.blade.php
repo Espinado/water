@@ -17,16 +17,13 @@
                 <div class="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
                     <div class="p-4 text-gray-900 space-y-4 sm:p-6">
                         <p class="text-lg font-medium">{{ __('Панель управляющего') }}</p>
-                        <p class="text-sm text-gray-600 leading-relaxed">{{ __('Создавайте дома и квартиры, выдавайте доступ жильцам и просматривайте показания.') }}</p>
+                        <p class="text-sm text-gray-600 leading-relaxed">{{ __('Сводка по домам, долгам и ввод показаний.') }}</p>
                         <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                            <a href="{{ route('manager.panel') }}" wire:navigate class="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-gray-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 sm:inline-flex sm:min-h-0 sm:py-2">
-                                {{ __('Дома и доступ') }}
+                            <a href="{{ route('manager.setup') }}" wire:navigate class="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-violet-700 px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest text-white shadow-md hover:bg-violet-800 sm:inline-flex sm:min-h-0 sm:py-2">
+                                {{ __('Управление домами') }}
                             </a>
-                            <a href="{{ route('manager.apartments') }}" wire:navigate class="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50 sm:inline-flex sm:min-h-0 sm:py-2">
-                                {{ __('Квартиры') }}
-                            </a>
-                            <a href="{{ route('manager.readings') }}" wire:navigate class="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest text-gray-700 hover:bg-gray-50 sm:inline-flex sm:min-h-0 sm:py-2">
-                                {{ __('Показания по дому') }}
+                            <a href="{{ route('manager.readings') }}" wire:navigate class="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-sky-600 px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest text-white shadow-md hover:bg-sky-700 sm:inline-flex sm:min-h-0 sm:py-2">
+                                {{ __('Управление показаниями') }}
                             </a>
                         </div>
                     </div>
@@ -87,6 +84,18 @@
                                                 <p class="text-center text-2xl font-bold tracking-tight text-gray-900 sm:text-xl">Lūdzu uzgaidiet</p>
                                             </div>
 
+                                            <div
+                                                wire:loading.flex
+                                                wire:target="saveReading"
+                                                class="fixed inset-0 z-50 flex-col items-center justify-center gap-5 bg-white/90 px-6 backdrop-blur-sm sm:absolute sm:inset-0 sm:rounded-2xl sm:bg-white/85"
+                                            >
+                                                <svg class="h-28 w-28 animate-spin text-emerald-600 sm:h-20 sm:w-20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                                                    <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <p class="text-center text-2xl font-bold tracking-tight text-gray-900 sm:text-xl">{{ __('Идёт обработка данных') }}</p>
+                                            </div>
+
                                             <p class="text-sm leading-relaxed text-gray-600">{{ __('Введите показания вручную или нажмите «Считать» — откроется камера. Снимите табло крупно, без бликов; распознанное значение подставится в поле, его можно поправить.') }}</p>
 
                                             <div class="space-y-2">
@@ -126,7 +135,7 @@
                                                 <x-input-error :messages="$errors->get('hot_m3')" class="mt-1" />
                                                 <x-input-error :messages="$errors->get('hotMeterPhoto')" class="mt-1" />
                                             </div>
-                                            <x-primary-button type="submit" class="!flex min-h-[48px] w-full justify-center sm:!inline-flex sm:w-auto sm:min-h-0">
+                                            <x-primary-button type="submit" wire:loading.attr="disabled" wire:target="saveReading" class="!flex min-h-[48px] w-full justify-center sm:!inline-flex sm:w-auto sm:min-h-0">
                                                 {{ __('Сохранить показания') }}
                                             </x-primary-button>
                                         </form>

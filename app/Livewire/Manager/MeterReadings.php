@@ -3,10 +3,11 @@
 namespace App\Livewire\Manager;
 
 use App\Enums\UserRole;
+use App\Livewire\Concerns\HasManagerContext;
 use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\MeterReading;
-use App\Services\MeterSubmissionWindow;
+use App\Services\ManagerContext;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +23,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class MeterReadings extends Component
 {
+    use HasManagerContext;
     use WithPagination;
 
     public ?int $building_id = null;
@@ -31,6 +33,8 @@ class MeterReadings extends Component
     public int $month = 0;
 
     public string $search = '';
+
+    public string $statusFilter = 'debt';
 
     public string $sortField = 'number';
 
@@ -42,30 +46,54 @@ class MeterReadings extends Component
 
     public string $edit_hot = '';
 
-    public function mount(): void
+    public function mount(ManagerContext $context): void
     {
-        // По умолчанию показываем тот же расчётный период, что открыт жильцам:
-        // окно 28-е → 10-е следующего месяца относится к месяцу открытия (напр., 28 апр–10 мая → апрель).
-        $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
-        $this->year = $period['year'] ?? (int) now()->year;
-        $this->month = $period['month'] ?? (int) now()->month;
-        $this->building_id = Building::query()->orderBy('id')->value('id');
+        $this->loadManagerContext($context);
+
+        if (in_array(request()->query('filter'), ['all', 'debt', 'submitted'], true)) {
+            $this->statusFilter = request()->query('filter');
+        }
     }
 
-    public function updatedBuildingId(): void
+    protected function syncPeriodFromContext(ManagerContext $context): void
+    {
+        $this->year = $context->year();
+        $this->month = $context->month();
+    }
+
+    protected function managerPeriodYear(): int
+    {
+        return $this->year;
+    }
+
+    protected function managerPeriodMonth(): int
+    {
+        return $this->month;
+    }
+
+    public function updatedStatusFilter(): void
     {
         $this->resetPage();
         $this->cancelEditApartment();
     }
 
-    public function updatedYear(): void
+    public function updatedBuildingId(ManagerContext $context): void
     {
+        $this->persistManagerContext($context);
         $this->resetPage();
         $this->cancelEditApartment();
     }
 
-    public function updatedMonth(): void
+    public function updatedYear(ManagerContext $context): void
     {
+        $this->persistManagerContext($context);
+        $this->resetPage();
+        $this->cancelEditApartment();
+    }
+
+    public function updatedMonth(ManagerContext $context): void
+    {
+        $this->persistManagerContext($context);
         $this->resetPage();
         $this->cancelEditApartment();
     }
@@ -211,6 +239,21 @@ class MeterReadings extends Component
         return ['year' => $y, 'month' => $m];
     }
 
+    public function residentName(Apartment $row): string
+    {
+        $fn = $row->getAttribute('ru_first_name');
+        $ln = $row->getAttribute('ru_last_name');
+        $name = $row->getAttribute('ru_name');
+
+        if (($fn === null || $fn === '') && ($ln === null || $ln === '') && $name) {
+            return (string) $name;
+        }
+
+        $full = trim(($ln ?? '').' '.($fn ?? ''));
+
+        return $full !== '' ? $full : '—';
+    }
+
     #[Computed]
     public function previousPeriodLabel(): string
     {
@@ -263,6 +306,9 @@ class MeterReadings extends Component
                 'mr_c.hot_m3 as curr_hot_m3',
                 'mr_p.cold_m3 as prev_cold_m3',
                 'mr_p.hot_m3 as prev_hot_m3',
+                'users.first_name as ru_first_name',
+                'users.last_name as ru_last_name',
+                'users.name as ru_name',
             ]);
 
         if ($this->search !== '') {
@@ -277,7 +323,17 @@ class MeterReadings extends Component
             });
         }
 
+        match ($this->statusFilter) {
+            'debt' => $query->whereNull('mr_c.id'),
+            'submitted' => $query->whereNotNull('mr_c.id'),
+            default => null,
+        };
+
         $dir = $this->sortAsc ? 'asc' : 'desc';
+
+        if ($this->sortField === 'number' && $this->statusFilter !== 'submitted') {
+            $query->orderByRaw('CASE WHEN mr_c.id IS NULL THEN 0 ELSE 1 END ASC');
+        }
 
         match ($this->sortField) {
             'prev_cold' => $query->orderBy('mr_p.cold_m3', $dir)->orderBy('apartments.number'),
