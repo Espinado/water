@@ -155,7 +155,7 @@ class MeterReadings extends Component
                 'edit_hot' => ['required', 'numeric', 'min:0'],
             ],
             [],
-            ['edit_cold' => 'холодная вода', 'edit_hot' => 'горячая вода'],
+            ['edit_cold' => __('холодная вода'), 'edit_hot' => __('горячая вода')],
         )->validate();
 
         $user = auth()->user();
@@ -174,7 +174,7 @@ class MeterReadings extends Component
             ],
         );
 
-        session()->flash('mgr_reading_ok', 'Сохранено для кв. '.$apartment->number);
+        session()->flash('mgr_reading_ok', __('Сохранено для кв. :number', ['number' => $apartment->number]));
         $this->cancelEditApartment();
     }
 

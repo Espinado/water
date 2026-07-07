@@ -35,20 +35,21 @@ new class extends Component
                     </x-nav-link>
                     @if (auth()->user()->isManager())
                         <x-nav-link :href="route('manager.panel')" :active="request()->routeIs('manager.panel')" wire:navigate>
-                            Дома и доступ
+                            {{ __('Дома и доступ') }}
                         </x-nav-link>
                         <x-nav-link :href="route('manager.apartments')" :active="request()->routeIs('manager.apartments')" wire:navigate>
-                            Квартиры
+                            {{ __('Квартиры') }}
                         </x-nav-link>
                         <x-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings')" wire:navigate>
-                            Показания
+                            {{ __('Показания') }}
                         </x-nav-link>
                     @endif
                 </div>
             </div>
 
             <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
+            <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-3">
+                <x-language-switcher />
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-indigo-100 text-sm font-medium rounded-xl text-indigo-700 bg-indigo-50/70 hover:text-indigo-800 focus:outline-none transition ease-in-out duration-150">
@@ -64,13 +65,13 @@ new class extends Component
 
                     <x-slot name="content">
                         <x-dropdown-link :href="route('profile')" wire:navigate>
-                            {{ __('Profile') }}
+                            {{ __('Профиль') }}
                         </x-dropdown-link>
 
                         <!-- Authentication -->
                         <button wire:click="logout" class="w-full text-start">
                             <x-dropdown-link>
-                                {{ __('Log Out') }}
+                                {{ __('Выйти') }}
                             </x-dropdown-link>
                         </button>
                     </x-slot>
@@ -97,13 +98,13 @@ new class extends Component
             </x-responsive-nav-link>
             @if (auth()->user()->isManager())
                 <x-responsive-nav-link :href="route('manager.panel')" :active="request()->routeIs('manager.panel')" wire:navigate>
-                    Дома и доступ
+                    {{ __('Дома и доступ') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('manager.apartments')" :active="request()->routeIs('manager.apartments')" wire:navigate>
-                    Квартиры
+                    {{ __('Квартиры') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings')" wire:navigate>
-                    Показания
+                    {{ __('Показания') }}
                 </x-responsive-nav-link>
             @endif
         </div>
@@ -115,15 +116,19 @@ new class extends Component
                 <div class="font-medium text-sm text-gray-500">{{ auth()->user()->email }}</div>
             </div>
 
+            <div class="mt-3 px-4">
+                <x-language-switcher />
+            </div>
+
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile')" wire:navigate>
-                    {{ __('Profile') }}
+                    {{ __('Профиль') }}
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
                 <button wire:click="logout" class="w-full text-start">
                     <x-responsive-nav-link>
-                        {{ __('Log Out') }}
+                        {{ __('Выйти') }}
                     </x-responsive-nav-link>
                 </button>
             </div>

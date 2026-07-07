@@ -18,7 +18,7 @@ class EnsureAccessNotSuspended
             $request->session()->regenerateToken();
 
             return redirect()->route('login')
-                ->with('status', 'Доступ для вашей учётной записи отключён. Обратитесь к управляющему.');
+                ->with('status', __('Доступ для вашей учётной записи отключён. Обратитесь к управляющему.'));
         }
 
         return $next($request);

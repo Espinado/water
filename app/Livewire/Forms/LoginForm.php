@@ -44,7 +44,7 @@ class LoginForm extends Form
             Auth::logout();
 
             throw ValidationException::withMessages([
-                'form.email' => 'Доступ для этой учётной записи отключён. Обратитесь к управляющему.',
+                'form.email' => __('Доступ для этой учётной записи отключён. Обратитесь к управляющему.'),
             ]);
         }
 

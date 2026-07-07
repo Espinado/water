@@ -5,9 +5,12 @@ use App\Livewire\Manager\ApartmentReadingsHistory;
 use App\Livewire\Manager\ApartmentTable;
 use App\Livewire\Manager\HouseholdPanel;
 use App\Livewire\Manager\MeterReadings;
+use App\Http\Controllers\LocaleController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
+
+Route::get('locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');

@@ -30,7 +30,7 @@ class MeterPhotoOcrService
 
             $annotation = $detected['annotation'];
             if ($annotation === null) {
-                return $this->ocrResult(null, null, 'На фото не найден текст. Сделайте крупнее цифры и без бликов.');
+                return $this->ocrResult(null, null, __('На фото не найден текст. Сделайте крупнее цифры и без бликов.'));
             }
 
             $ordered = $this->orderedMeterValuesFromAnnotation($annotation);
@@ -40,7 +40,7 @@ class MeterPhotoOcrService
                 return $this->ocrResult(
                     null,
                     null,
-                    'Текст найден, но похожие на показания числа не распознаны. Введите значения вручную.',
+                    __('Текст найден, но похожие на показания числа не распознаны. Введите значения вручную.'),
                     $snippet !== '' ? $snippet : null,
                 );
             }
@@ -49,14 +49,14 @@ class MeterPhotoOcrService
             $hot = $ordered[1] ?? null;
 
             $hint = count($ordered) >= 2
-                ? 'Подставлены первые два числа слева направо (сверху вниз). Проверьте и при необходимости исправьте.'
-                : 'Найдено одно число — заполните второе показание вручную.';
+                ? __('Подставлены первые два числа слева направо (сверху вниз). Проверьте и при необходимости исправьте.')
+                : __('Найдено одно число — заполните второе показание вручную.');
 
             return $this->ocrResult($cold, $hot, $hint);
         } catch (Throwable $e) {
             Log::warning('Meter OCR failed', ['exception' => $e]);
 
-            return $this->ocrResult(null, null, 'Ошибка распознавания: '.$e->getMessage());
+            return $this->ocrResult(null, null, __('Ошибка распознавания: :error', ['error' => $e->getMessage()]));
         }
     }
 
@@ -71,7 +71,7 @@ class MeterPhotoOcrService
         if ($aiValue !== null) {
             return [
                 'value' => $aiValue,
-                'hint' => 'Распознано ИИ ('.$label.'). Проверьте значение перед сохранением.',
+                'hint' => __('Распознано ИИ (:label). Проверьте значение перед сохранением.', ['label' => $label]),
                 'raw_snippet' => null,
             ];
         }
@@ -90,7 +90,7 @@ class MeterPhotoOcrService
             if ($annotation === null) {
                 return [
                     'value' => null,
-                    'hint' => 'На фото не найден текст. Сделайте снимок табло крупнее и без бликов.',
+                    'hint' => __('На фото не найден текст. Сделайте снимок табло крупнее и без бликов.'),
                     'raw_snippet' => null,
                 ];
             }
@@ -101,14 +101,14 @@ class MeterPhotoOcrService
 
                 return [
                     'value' => null,
-                    'hint' => 'Не удалось уверенно распознать показание '.$label.'. Введите значение вручную.',
+                    'hint' => __('Не удалось уверенно распознать показание :label. Введите значение вручную.', ['label' => $label]),
                     'raw_snippet' => $snippet !== '' ? $snippet : null,
                 ];
             }
 
             return [
                 'value' => $single,
-                'hint' => 'Подставлено распознанное значение '.$label.'. Проверьте перед сохранением.',
+                'hint' => __('Подставлено распознанное значение :label. Проверьте перед сохранением.', ['label' => $label]),
                 'raw_snippet' => null,
             ];
         } catch (Throwable $e) {
@@ -116,7 +116,7 @@ class MeterPhotoOcrService
 
             return [
                 'value' => null,
-                'hint' => 'Ошибка распознавания: '.$e->getMessage(),
+                'hint' => __('Ошибка распознавания: :error', ['error' => $e->getMessage()]),
                 'raw_snippet' => null,
             ];
         }
@@ -142,7 +142,7 @@ class MeterPhotoOcrService
         } catch (Throwable $e) {
             Log::warning('AI meter recognition threw', ['exception' => $e]);
 
-            return [null, 'ИИ-распознавание недоступно: '.$e->getMessage()];
+            return [null, __('ИИ-распознавание недоступно: :error', ['error' => $e->getMessage()])];
         }
 
         if ($ai['error'] !== null) {
@@ -528,7 +528,7 @@ class MeterPhotoOcrService
         if (! config('google_vision.enabled')) {
             return [
                 'annotation' => null,
-                'error' => 'Распознавание отключено. Включите GOOGLE_VISION_ENABLED и укажите ключ в GOOGLE_APPLICATION_CREDENTIALS.',
+                'error' => __('Распознавание отключено. Включите GOOGLE_VISION_ENABLED и укажите ключ в GOOGLE_APPLICATION_CREDENTIALS.'),
             ];
         }
 
@@ -536,14 +536,13 @@ class MeterPhotoOcrService
         if ($path === '') {
             return [
                 'annotation' => null,
-                'error' => 'Не найден или не читается файл ключа Google. В .env задайте GOOGLE_APPLICATION_CREDENTIALS абсолютным путём '
-                    .'(например: '.storage_path('app/private/ваш-ключ.json').'), положите JSON в storage/app/private/ и проверьте права chmod для пользователя веб-сервера.',
+                'error' => __('Не найден или не читается файл ключа Google. В .env задайте GOOGLE_APPLICATION_CREDENTIALS абсолютным путём (например: :path), положите JSON в storage/app/private/ и проверьте права chmod для пользователя веб-сервера.', ['path' => storage_path('app/private/ваш-ключ.json')]),
             ];
         }
 
         $json = json_decode((string) file_get_contents($path), true);
         if (! is_array($json)) {
-            return ['annotation' => null, 'error' => 'Файл ключа Google не является корректным JSON.'];
+            return ['annotation' => null, 'error' => __('Файл ключа Google не является корректным JSON.')];
         }
 
         $detected = $this->documentTextDetector->detect($imageBinary, $json);

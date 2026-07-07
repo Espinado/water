@@ -70,14 +70,14 @@ class Dashboard extends Component
     {
         $user = auth()->user();
         if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
-            session()->flash('reading_error', 'Сохранение показаний доступно только жильцу с назначенной квартирой. Для проверки OCR войдите под учётной записью жильца, не под управляющим.');
+            session()->flash('reading_error', __('Сохранение показаний доступно только жильцу с назначенной квартирой. Для проверки OCR войдите под учётной записью жильца, не под управляющим.'));
 
             return;
         }
 
         $apartment = $user->apartment()->with('building')->first();
         if (! $apartment) {
-            session()->flash('reading_error', 'Квартира не назначена. Обратитесь к управляющему.');
+            session()->flash('reading_error', __('Квартира не назначена. Обратитесь к управляющему.'));
 
             return;
         }
@@ -85,7 +85,7 @@ class Dashboard extends Component
         $window = app(MeterSubmissionWindow::class);
         $period = $window->residentActionablePeriodAt();
         if (! $period) {
-            session()->flash('reading_error', 'Сейчас не период приёма показаний (с '.config('water.submission_opens_day').'-го по '.config('water.submission_closes_day').'-е число).');
+            session()->flash('reading_error', __('Сейчас не период приёма показаний (с :from-го по :to-е число).', ['from' => config('water.submission_opens_day'), 'to' => config('water.submission_closes_day')]));
 
             return;
         }
@@ -103,7 +103,7 @@ class Dashboard extends Component
                 Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
             }
         } catch (AuthorizationException) {
-            session()->flash('reading_error', 'Нет прав на сохранение за этот период. Если включён тест окна (WATER_SUBMISSION_WINDOW_BYPASS), выполните на сервере: php artisan config:clear');
+            session()->flash('reading_error', __('Нет прав на сохранение за этот период. Если включён тест окна (WATER_SUBMISSION_WINDOW_BYPASS), выполните на сервере: php artisan config:clear'));
 
             return;
         }
@@ -112,8 +112,8 @@ class Dashboard extends Component
             'cold_m3' => ['required', 'numeric', 'min:0'],
             'hot_m3' => ['required', 'numeric', 'min:0'],
         ], [], [
-            'cold_m3' => 'холодная вода',
-            'hot_m3' => 'горячая вода',
+            'cold_m3' => __('холодная вода'),
+            'hot_m3' => __('горячая вода'),
         ]);
 
         MeterReading::query()->updateOrCreate(
@@ -130,7 +130,7 @@ class Dashboard extends Component
             ],
         );
 
-        session()->flash('reading_status', 'Показания сохранены.');
+        session()->flash('reading_status', __('Показания сохранены.'));
     }
 
     public function updatedColdMeterPhoto(): void
@@ -330,14 +330,14 @@ class Dashboard extends Component
     {
         $user = auth()->user();
         if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
-            session()->flash('reading_error', 'Распознавание с фото доступно только жильцу с назначенной квартирой. Войдите под учётной записью жильца для теста OCR.');
+            session()->flash('reading_error', __('Распознавание с фото доступно только жильцу с назначенной квартирой. Войдите под учётной записью жильца для теста OCR.'));
 
             return;
         }
 
         $apartment = $user->apartment()->with('building')->first();
         if (! $apartment) {
-            session()->flash('reading_error', 'Квартира не назначена. Обратитесь к управляющему.');
+            session()->flash('reading_error', __('Квартира не назначена. Обратитесь к управляющему.'));
 
             return;
         }
@@ -345,7 +345,7 @@ class Dashboard extends Component
         $window = app(MeterSubmissionWindow::class);
         $period = $window->residentActionablePeriodAt();
         if (! $period) {
-            session()->flash('reading_error', 'Сейчас не период приёма показаний (с '.config('water.submission_opens_day').'-го по '.config('water.submission_closes_day').'-е число).');
+            session()->flash('reading_error', __('Сейчас не период приёма показаний (с :from-го по :to-е число).', ['from' => config('water.submission_opens_day'), 'to' => config('water.submission_closes_day')]));
 
             return;
         }
@@ -363,13 +363,13 @@ class Dashboard extends Component
                 Gate::authorize('record-meter-reading', [$apartment, $period['year'], $period['month']]);
             }
         } catch (AuthorizationException) {
-            session()->flash('reading_error', 'Нет прав на ввод показаний за этот период. После смены .env выполните: php artisan config:clear');
+            session()->flash('reading_error', __('Нет прав на ввод показаний за этот период. После смены .env выполните: php artisan config:clear'));
 
             return;
         }
 
         $photoProperty = $type === 'cold' ? 'coldMeterPhoto' : 'hotMeterPhoto';
-        $fieldLabel = $type === 'cold' ? 'фото счётчика ХВС' : 'фото счётчика ГВС';
+        $fieldLabel = $type === 'cold' ? __('фото счётчика ХВС') : __('фото счётчика ГВС');
 
         $this->validate([
             $photoProperty => ['required', 'image', 'max:10240'],
@@ -379,12 +379,12 @@ class Dashboard extends Component
 
         $file = $this->{$photoProperty};
         if (! $file instanceof TemporaryUploadedFile) {
-            session()->flash('reading_error', 'Не удалось загрузить файл.');
+            session()->flash('reading_error', __('Не удалось загрузить файл.'));
 
             return;
         }
 
-        $label = $type === 'cold' ? 'ХВС' : 'ГВС';
+        $label = $type === 'cold' ? __('ХВС') : __('ГВС');
         $result = app(MeterPhotoOcrService::class)->suggestSingleFromImageBytes(
             $file->get(),
             $label,

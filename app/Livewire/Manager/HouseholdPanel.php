@@ -61,7 +61,7 @@ class HouseholdPanel extends Component
         $this->building_id = $building->id;
         $this->new_building_name = '';
         $this->new_building_address = '';
-        session()->flash('mgr_ok', 'Дом добавлен.');
+        session()->flash('mgr_ok', __('Дом добавлен.'));
     }
 
     public function createApartment(): void
@@ -77,7 +77,7 @@ class HouseholdPanel extends Component
         ]);
 
         $this->new_apartment_number = '';
-        session()->flash('mgr_ok', 'Квартира добавлена.');
+        session()->flash('mgr_ok', __('Квартира добавлена.'));
     }
 
     public function createResident(): void
@@ -108,9 +108,9 @@ class HouseholdPanel extends Component
 
         if ($status === Password::RESET_LINK_SENT) {
             $user->forceFill(['invitation_sent_at' => now()])->save();
-            session()->flash('mgr_ok', 'Жилец добавлен. На '.$user->email.' отправлена ссылка: жилец придумает пароль и подтвердит его на сайте.');
+            session()->flash('mgr_ok', __('Жилец добавлен. На :email отправлена ссылка: жилец придумает пароль и подтвердит его на сайте.', ['email' => $user->email]));
         } else {
-            session()->flash('mgr_ok', 'Жилец добавлен. Письмо не отправилось — отправьте ссылку для пароля из таблицы «Квартиры».');
+            session()->flash('mgr_ok', __('Жилец добавлен. Письмо не отправилось — отправьте ссылку для пароля из таблицы «Квартиры».'));
             if (is_string($status)) {
                 session()->flash('mgr_warn', __($status));
             }

@@ -84,13 +84,13 @@ class ApartmentTable extends Component
         $status = Password::sendResetLink(['email' => $user->email]);
 
         if ($status !== Password::RESET_LINK_SENT) {
-            session()->flash('apt_err', is_string($status) ? __($status) : 'Не удалось отправить письмо.');
+            session()->flash('apt_err', is_string($status) ? __($status) : __('Не удалось отправить письмо.'));
 
             return;
         }
 
         $user->forceFill(['invitation_sent_at' => now()])->save();
-        session()->flash('apt_ok', 'Ссылка для установки или сброса пароля отправлена на '.$user->email);
+        session()->flash('apt_ok', __('Ссылка для установки или сброса пароля отправлена на :email', ['email' => $user->email]));
     }
 
     public function toggleAccess(int $userId): void
@@ -104,7 +104,7 @@ class ApartmentTable extends Component
         $user->access_suspended_at = $user->access_suspended_at ? null : now();
         $user->save();
 
-        session()->flash('apt_ok', $user->access_suspended_at ? 'Доступ закрыт.' : 'Доступ открыт.');
+        session()->flash('apt_ok', $user->access_suspended_at ? __('Доступ закрыт.') : __('Доступ открыт.'));
     }
 
     public function residentDisplayFirst(Model $apt): string

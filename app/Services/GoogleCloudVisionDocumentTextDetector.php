@@ -42,11 +42,11 @@ class GoogleCloudVisionDocumentTextDetector implements VisionDocumentTextDetecto
 
             $first = $response->getResponses()->offsetGet(0);
             if ($first === null) {
-                return ['annotation' => null, 'error' => 'Пустой ответ Vision API.'];
+                return ['annotation' => null, 'error' => __('Пустой ответ Vision API.')];
             }
 
             if ($first->hasError()) {
-                return ['annotation' => null, 'error' => 'Vision API: '.$first->getError()->getMessage()];
+                return ['annotation' => null, 'error' => __('Vision API: :error', ['error' => $first->getError()->getMessage()])];
             }
 
             $annotation = $first->getFullTextAnnotation();

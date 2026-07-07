@@ -14,16 +14,16 @@ class GeminiMeterReadingRecognizer implements MeterReadingRecognizer
     public function recognize(string $imageBinary, string $mimeType, string $meterLabel): array
     {
         if (! config('ai_vision.enabled')) {
-            return $this->fail('ИИ-распознавание отключено. Включите AI_VISION_ENABLED и укажите GEMINI_API_KEY в .env.');
+            return $this->fail(__('ИИ-распознавание отключено. Включите AI_VISION_ENABLED и укажите GEMINI_API_KEY в .env.'));
         }
 
         $apiKey = trim((string) config('ai_vision.gemini.api_key'));
         if ($apiKey === '') {
-            return $this->fail('Не задан GEMINI_API_KEY. Получите ключ в Google AI Studio (aistudio.google.com/apikey) и пропишите в .env.');
+            return $this->fail(__('Не задан GEMINI_API_KEY. Получите ключ в Google AI Studio (aistudio.google.com/apikey) и пропишите в .env.'));
         }
 
         if ($imageBinary === '') {
-            return $this->fail('Пустое изображение — нечего распознавать.');
+            return $this->fail(__('Пустое изображение — нечего распознавать.'));
         }
 
         $model = (string) config('ai_vision.gemini.model', 'gemini-2.0-flash');
@@ -58,14 +58,14 @@ class GeminiMeterReadingRecognizer implements MeterReadingRecognizer
                     ],
                 ]);
         } catch (Throwable $e) {
-            return $this->fail('Не удалось обратиться к Gemini: '.$e->getMessage());
+            return $this->fail(__('Не удалось обратиться к Gemini: :error', ['error' => $e->getMessage()]));
         }
 
         if ($response->failed()) {
             $apiMessage = (string) data_get($response->json(), 'error.message', '');
             $detail = $apiMessage !== '' ? $apiMessage : mb_substr((string) $response->body(), 0, 200);
 
-            return $this->fail('Gemini API ('.$response->status().'): '.$detail);
+            return $this->fail(__('Gemini API (:status): :detail', ['status' => $response->status(), 'detail' => $detail]));
         }
 
         $text = (string) data_get($response->json(), 'candidates.0.content.parts.0.text', '');
@@ -73,12 +73,12 @@ class GeminiMeterReadingRecognizer implements MeterReadingRecognizer
             $finish = (string) data_get($response->json(), 'candidates.0.finishReason', '');
             $hint = $finish !== '' ? ' (finishReason: '.$finish.')' : '';
 
-            return $this->fail('Gemini не вернул текст ответа'.$hint.'.');
+            return $this->fail(__('Gemini не вернул текст ответа:hint.', ['hint' => $hint]));
         }
 
         $parsed = $this->decodeModelJson($text);
         if ($parsed === null) {
-            return $this->fail('Не удалось разобрать ответ Gemini. Введите значение вручную.', $text);
+            return $this->fail(__('Не удалось разобрать ответ Gemini. Введите значение вручную.'), $text);
         }
 
         $readable = (bool) ($parsed['readable'] ?? false);

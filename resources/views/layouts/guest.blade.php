@@ -16,6 +16,9 @@
     </head>
     <body class="font-sans text-slate-900 antialiased">
         <div class="min-h-screen flex flex-col justify-center items-center px-4 py-8">
+            <div class="absolute top-4 end-4">
+                <x-language-switcher />
+            </div>
             <div class="mb-4">
                 <a href="{{ route('dashboard') }}" wire:navigate>
                     <x-application-logo class="w-16 h-16 sm:w-20 sm:h-20 fill-current text-indigo-600" />

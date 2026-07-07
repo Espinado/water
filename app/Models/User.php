@@ -18,6 +18,7 @@ use Illuminate\Notifications\Notifiable;
     'last_name',
     'email',
     'phone',
+    'locale',
     'password',
     'role',
     'apartment_id',
