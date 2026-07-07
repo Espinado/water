@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Contracts\MeterReadingRecognizer;
 use App\Contracts\VisionDocumentTextDetector;
 use App\Models\Apartment;
 use App\Models\MeterReading;
 use App\Models\User;
+use App\Services\GeminiMeterReadingRecognizer;
 use App\Services\GoogleCloudVisionDocumentTextDetector;
 use App\Services\MeterSubmissionWindow;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -22,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(VisionDocumentTextDetector::class, GoogleCloudVisionDocumentTextDetector::class);
+        $this->app->singleton(MeterReadingRecognizer::class, GeminiMeterReadingRecognizer::class);
     }
 
     /**

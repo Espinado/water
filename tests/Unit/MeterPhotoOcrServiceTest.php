@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Contracts\MeterReadingRecognizer;
 use App\Contracts\VisionDocumentTextDetector;
 use App\Services\MeterPhotoOcrService;
 use Google\Cloud\Vision\V1\TextAnnotation;
@@ -252,5 +253,95 @@ class MeterPhotoOcrServiceTest extends TestCase
         $result = $service->suggestSingleFromImageBytes('x', 'ХВС');
 
         $this->assertSame('462.412', $result['value']);
+    }
+
+    public function test_prefers_ai_recognizer_result_over_cloud_vision(): void
+    {
+        Config::set('ai_vision.enabled', true);
+        Config::set('google_vision.enabled', true);
+        Config::set('google_vision.credentials_path', $this->credentialsPath);
+
+        $ai = Mockery::mock(MeterReadingRecognizer::class);
+        $ai->shouldReceive('recognize')
+            ->once()
+            ->with('img', 'image/jpeg', 'ХВС')
+            ->andReturn(['value' => '462.412', 'confidence' => 0.9, 'error' => null, 'raw' => null]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->never();
+
+        $service = new MeterPhotoOcrService($detector, $ai);
+        $result = $service->suggestSingleFromImageBytes('img', 'ХВС', 'image/jpeg');
+
+        $this->assertSame('462.412', $result['value']);
+        $this->assertStringContainsString('ИИ', $result['hint']);
+    }
+
+    public function test_falls_back_to_cloud_vision_when_ai_errors(): void
+    {
+        Config::set('ai_vision.enabled', true);
+        Config::set('google_vision.enabled', true);
+        Config::set('google_vision.credentials_path', $this->credentialsPath);
+
+        $ai = Mockery::mock(MeterReadingRecognizer::class);
+        $ai->shouldReceive('recognize')
+            ->once()
+            ->andReturn(['value' => null, 'confidence' => null, 'error' => 'Gemini API (429): quota', 'raw' => null]);
+
+        $annotation = new TextAnnotation([
+            'pages' => [],
+            'text' => '32279740-2012 PoWoGaz 00080 792 m³',
+        ]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->once()->andReturn(['annotation' => $annotation, 'error' => null]);
+
+        $service = new MeterPhotoOcrService($detector, $ai);
+        $result = $service->suggestSingleFromImageBytes('img', 'ГВС', 'image/jpeg');
+
+        $this->assertSame('80.792', $result['value']);
+    }
+
+    public function test_shows_ai_error_when_cloud_vision_disabled(): void
+    {
+        Config::set('ai_vision.enabled', true);
+        Config::set('google_vision.enabled', false);
+
+        $ai = Mockery::mock(MeterReadingRecognizer::class);
+        $ai->shouldReceive('recognize')
+            ->once()
+            ->andReturn(['value' => null, 'confidence' => null, 'error' => 'Не задан GEMINI_API_KEY.', 'raw' => null]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->never();
+
+        $service = new MeterPhotoOcrService($detector, $ai);
+        $result = $service->suggestSingleFromImageBytes('img', 'ХВС', 'image/jpeg');
+
+        $this->assertNull($result['value']);
+        $this->assertStringContainsString('GEMINI_API_KEY', $result['hint']);
+    }
+
+    public function test_ai_disabled_uses_cloud_vision_directly(): void
+    {
+        Config::set('ai_vision.enabled', false);
+        Config::set('google_vision.enabled', true);
+        Config::set('google_vision.credentials_path', $this->credentialsPath);
+
+        $ai = Mockery::mock(MeterReadingRecognizer::class);
+        $ai->shouldReceive('recognize')->never();
+
+        $annotation = new TextAnnotation([
+            'pages' => [],
+            'text' => '00080 792 m³',
+        ]);
+
+        $detector = Mockery::mock(VisionDocumentTextDetector::class);
+        $detector->shouldReceive('detect')->once()->andReturn(['annotation' => $annotation, 'error' => null]);
+
+        $service = new MeterPhotoOcrService($detector, $ai);
+        $result = $service->suggestSingleFromImageBytes('img', 'ГВС', 'image/jpeg');
+
+        $this->assertSame('80.792', $result['value']);
     }
 }

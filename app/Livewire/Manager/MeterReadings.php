@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\MeterReading;
+use App\Services\MeterSubmissionWindow;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,8 +44,11 @@ class MeterReadings extends Component
 
     public function mount(): void
     {
-        $this->year = (int) now()->year;
-        $this->month = (int) now()->month;
+        // По умолчанию показываем тот же расчётный период, что открыт жильцам:
+        // окно 28-е → 10-е следующего месяца относится к месяцу открытия (напр., 28 апр–10 мая → апрель).
+        $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
+        $this->year = $period['year'] ?? (int) now()->year;
+        $this->month = $period['month'] ?? (int) now()->month;
         $this->building_id = Building::query()->orderBy('id')->value('id');
     }
 

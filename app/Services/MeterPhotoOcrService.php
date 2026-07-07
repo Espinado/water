@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\MeterReadingRecognizer;
 use App\Contracts\VisionDocumentTextDetector;
 use Google\Cloud\Vision\V1\TextAnnotation;
 use Google\Cloud\Vision\V1\Word;
@@ -12,6 +13,7 @@ class MeterPhotoOcrService
 {
     public function __construct(
         protected VisionDocumentTextDetector $documentTextDetector,
+        protected ?MeterReadingRecognizer $aiRecognizer = null,
     ) {}
 
     /**
@@ -63,14 +65,23 @@ class MeterPhotoOcrService
      *
      * @return array{value: ?string, hint: string, raw_snippet: ?string}
      */
-    public function suggestSingleFromImageBytes(string $imageBinary, string $label = 'счётчика'): array
+    public function suggestSingleFromImageBytes(string $imageBinary, string $label = 'счётчика', ?string $mimeType = null): array
     {
+        [$aiValue, $aiError] = $this->recognizeSingleWithAi($imageBinary, $label, $mimeType);
+        if ($aiValue !== null) {
+            return [
+                'value' => $aiValue,
+                'hint' => 'Распознано ИИ ('.$label.'). Проверьте значение перед сохранением.',
+                'raw_snippet' => null,
+            ];
+        }
+
         try {
             $detected = $this->detectAnnotationFromImage($imageBinary);
             if ($detected['error'] !== null) {
                 return [
                     'value' => null,
-                    'hint' => $detected['error'],
+                    'hint' => $aiError ?? $detected['error'],
                     'raw_snippet' => null,
                 ];
             }
@@ -109,6 +120,69 @@ class MeterPhotoOcrService
                 'raw_snippet' => null,
             ];
         }
+    }
+
+    /**
+     * Пытается распознать показание через AI-модель (первичный путь).
+     *
+     * @return array{0: ?string, 1: ?string} [нормализованное значение или null, ошибка для fallback или null]
+     */
+    protected function recognizeSingleWithAi(string $imageBinary, string $label, ?string $mimeType): array
+    {
+        if ($this->aiRecognizer === null || ! config('ai_vision.enabled')) {
+            return [null, null];
+        }
+
+        try {
+            $ai = $this->aiRecognizer->recognize(
+                $imageBinary,
+                $mimeType ?? $this->guessMimeType($imageBinary),
+                $label,
+            );
+        } catch (Throwable $e) {
+            Log::warning('AI meter recognition threw', ['exception' => $e]);
+
+            return [null, 'ИИ-распознавание недоступно: '.$e->getMessage()];
+        }
+
+        if ($ai['error'] !== null) {
+            return [null, $ai['error']];
+        }
+
+        if ($ai['value'] === null) {
+            return [null, null];
+        }
+
+        $normalized = $this->normalizeMeterToken($ai['value']);
+
+        return [$normalized, null];
+    }
+
+    protected function guessMimeType(string $imageBinary): string
+    {
+        if ($imageBinary === '') {
+            return 'image/jpeg';
+        }
+
+        if (function_exists('getimagesizefromstring')) {
+            $info = @getimagesizefromstring($imageBinary);
+            if (is_array($info) && ! empty($info['mime'])) {
+                return (string) $info['mime'];
+            }
+        }
+
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo !== false) {
+                $mime = finfo_buffer($finfo, $imageBinary);
+                finfo_close($finfo);
+                if (is_string($mime) && $mime !== '') {
+                    return $mime;
+                }
+            }
+        }
+
+        return 'image/jpeg';
     }
 
     /**

@@ -25,7 +25,7 @@ class DashboardMeterOcrTest extends TestCase
     {
         parent::setUp();
 
-        Carbon::setTestNow(Carbon::create(2026, 4, 26, 12, 0, 0, config('app.timezone')));
+        Carbon::setTestNow(Carbon::create(2026, 4, 29, 12, 0, 0, config('app.timezone')));
 
         $base = tempnam(sys_get_temp_dir(), 'gcv_sa_feat_');
         $this->assertNotFalse($base);
@@ -81,11 +81,9 @@ class DashboardMeterOcrTest extends TestCase
         Livewire::actingAs($user)
             ->test(Dashboard::class)
             ->set('coldMeterPhoto', UploadedFile::fake()->image('cold.jpg', 20, 20))
-            ->call('recognizeColdMeterFromPhoto')
             ->assertSet('cold_m3', '10')
             ->assertSet('coldMeterPhoto', null)
             ->set('hotMeterPhoto', UploadedFile::fake()->image('hot.jpg', 20, 20))
-            ->call('recognizeHotMeterFromPhoto')
             ->assertSet('hot_m3', '20')
             ->assertSet('hotMeterPhoto', null)
             ->assertSee('Подставлено распознанное значение');

@@ -7,10 +7,10 @@ use App\Models\MeterReading;
 use App\Models\User;
 use App\Services\MeterPhotoOcrService;
 use App\Services\MeterSubmissionWindow;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -85,7 +85,7 @@ class Dashboard extends Component
         $window = app(MeterSubmissionWindow::class);
         $period = $window->residentActionablePeriodAt();
         if (! $period) {
-            session()->flash('reading_error', 'Сейчас не период приёма показаний (с 25-го по 10-е число).');
+            session()->flash('reading_error', 'Сейчас не период приёма показаний (с '.config('water.submission_opens_day').'-го по '.config('water.submission_closes_day').'-е число).');
 
             return;
         }
@@ -133,12 +133,12 @@ class Dashboard extends Component
         session()->flash('reading_status', 'Показания сохранены.');
     }
 
-    public function recognizeColdMeterFromPhoto(): void
+    public function updatedColdMeterPhoto(): void
     {
         $this->recognizeSingleMeterFromPhoto('cold');
     }
 
-    public function recognizeHotMeterFromPhoto(): void
+    public function updatedHotMeterPhoto(): void
     {
         $this->recognizeSingleMeterFromPhoto('hot');
     }
@@ -345,7 +345,7 @@ class Dashboard extends Component
         $window = app(MeterSubmissionWindow::class);
         $period = $window->residentActionablePeriodAt();
         if (! $period) {
-            session()->flash('reading_error', 'Сейчас не период приёма показаний (с 25-го по 10-е число).');
+            session()->flash('reading_error', 'Сейчас не период приёма показаний (с '.config('water.submission_opens_day').'-го по '.config('water.submission_closes_day').'-е число).');
 
             return;
         }
@@ -385,7 +385,11 @@ class Dashboard extends Component
         }
 
         $label = $type === 'cold' ? 'ХВС' : 'ГВС';
-        $result = app(MeterPhotoOcrService::class)->suggestSingleFromImageBytes($file->get(), $label);
+        $result = app(MeterPhotoOcrService::class)->suggestSingleFromImageBytes(
+            $file->get(),
+            $label,
+            $file->getMimeType() ?: null,
+        );
 
         if ($result['value'] !== null) {
             if ($type === 'cold') {

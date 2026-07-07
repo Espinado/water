@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'submission_opens_day' => 25,
+    'submission_opens_day' => 28,
 
     'submission_closes_day' => 10,
 
