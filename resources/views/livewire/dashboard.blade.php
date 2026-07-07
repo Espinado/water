@@ -69,7 +69,10 @@
 
                                 @if ($this->residentCanEditMeter)
                                     @if ($this->residentSubmittedForCurrentPeriod)
-                                        <p class="text-sm font-medium leading-relaxed text-emerald-800">{{ __('Показания сданы.') }}</p>
+                                        <div class="rounded-xl bg-emerald-50 px-4 py-3 text-sm leading-relaxed text-emerald-900 sm:px-5">
+                                            <p class="font-medium">{{ __('Показания за этот период приняты. Форма ввода закрыта.') }}</p>
+                                            <p class="mt-1 text-emerald-800">{{ __('Следующий приём показаний откроется :next-го числа.', ['next' => config('water.submission_opens_day')]) }}</p>
+                                        </div>
                                     @else
                                         <form wire:submit="saveReading" class="relative mx-auto w-full max-w-full space-y-5 sm:max-w-md">
                                             <div

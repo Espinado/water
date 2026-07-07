@@ -32,6 +32,9 @@
         @if (session('reading_saved'))
             <div class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 ring-1 ring-emerald-100">{{ session('reading_saved') }}</div>
         @endif
+        @if (session('reading_error'))
+            <div class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-900 ring-1 ring-rose-100">{{ session('reading_error') }}</div>
+        @endif
 
         {{-- Ручной ввод показаний управляющим --}}
         <div class="app-card overflow-hidden">
@@ -40,44 +43,63 @@
                 <p class="mt-0.5 text-sm text-slate-600">{{ __('Управляющий вносит показания за выбранный период. После сохранения повторная сдача жильцом за этот период закрывается.') }}</p>
             </div>
 
-            <form wire:submit="saveEntry" class="space-y-4 p-4 sm:p-6">
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <x-input-label for="entry-year" :value="__('Год')" />
-                        <select wire:model.live="entryYear" id="entry-year" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @for ($y = (int) now()->year + 1; $y >= (int) now()->year - 6; $y--)
-                                <option value="{{ $y }}">{{ $y }}</option>
-                            @endfor
-                        </select>
-                    </div>
-                    <div>
-                        <x-input-label for="entry-month" :value="__('Месяц')" />
-                        <select wire:model.live="entryMonth" id="entry-month" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @for ($mo = 1; $mo <= 12; $mo++)
-                                <option value="{{ $mo }}">{{ \Carbon\Carbon::create(null, $mo, 1)->locale(app()->getLocale())->translatedFormat('F') }}</option>
-                            @endfor
-                        </select>
-                    </div>
+            @if ($this->entryAlreadySubmitted)
+                <div class="space-y-2 p-4 sm:p-6">
+                    <p class="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium leading-relaxed text-emerald-900">
+                        @if ($this->entryLockedPeriodLabel)
+                            {!! __('Показания за <strong>:period</strong> уже внесены. Форма ввода закрыта.', ['period' => $this->entryLockedPeriodLabel]) !!}
+                        @else
+                            {{ __('Показания за этот период уже внесены. Форма ввода закрыта.') }}
+                        @endif
+                    </p>
+                    <p class="text-sm leading-relaxed text-slate-600">{{ __('Чтобы изменить значения — нажмите «Редактировать» в таблице истории ниже.') }}</p>
                 </div>
+            @else
+                <form wire:submit="saveEntry" class="space-y-4 p-4 sm:p-6">
+                    @if ($this->entryLockedPeriodLabel)
+                        <p class="text-sm leading-relaxed text-slate-700">
+                            {!! __('Период ввода: <strong>:period</strong> — тот же, что у жильца.', ['period' => $this->entryLockedPeriodLabel]) !!}
+                        </p>
+                    @else
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <x-input-label for="entry-year" :value="__('Год')" />
+                                <select wire:model.live="entryYear" id="entry-year" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @for ($y = (int) now()->year + 1; $y >= (int) now()->year - 6; $y--)
+                                        <option value="{{ $y }}">{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                            <div>
+                                <x-input-label for="entry-month" :value="__('Месяц')" />
+                                <select wire:model.live="entryMonth" id="entry-month" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @for ($mo = 1; $mo <= 12; $mo++)
+                                        <option value="{{ $mo }}">{{ \Carbon\Carbon::create(null, $mo, 1)->locale(app()->getLocale())->translatedFormat('F') }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                        </div>
+                    @endif
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <x-input-label for="entry-cold" :value="__('ХВС, м³')" />
-                        <x-text-input wire:model="entry_cold" id="entry-cold" type="text" inputmode="decimal" class="mt-1 block w-full rounded-xl text-right font-semibold" />
-                        <x-input-error :messages="$errors->get('entry_cold')" class="mt-1" />
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-input-label for="entry-cold" :value="__('ХВС, м³')" />
+                            <x-text-input wire:model="entry_cold" id="entry-cold" type="text" inputmode="decimal" class="mt-1 block w-full rounded-xl text-right font-semibold" />
+                            <x-input-error :messages="$errors->get('entry_cold')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="entry-hot" :value="__('ГВС, м³')" />
+                            <x-text-input wire:model="entry_hot" id="entry-hot" type="text" inputmode="decimal" class="mt-1 block w-full rounded-xl text-right font-semibold" />
+                            <x-input-error :messages="$errors->get('entry_hot')" class="mt-1" />
+                        </div>
                     </div>
-                    <div>
-                        <x-input-label for="entry-hot" :value="__('ГВС, м³')" />
-                        <x-text-input wire:model="entry_hot" id="entry-hot" type="text" inputmode="decimal" class="mt-1 block w-full rounded-xl text-right font-semibold" />
-                        <x-input-error :messages="$errors->get('entry_hot')" class="mt-1" />
-                    </div>
-                </div>
 
-                <button type="submit" class="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-200 hover:from-emerald-600 hover:to-emerald-700 sm:w-auto">
-                    <span wire:loading.remove wire:target="saveEntry">{{ __('Сохранить показания') }}</span>
-                    <span wire:loading wire:target="saveEntry">{{ __('Сохранение…') }}</span>
-                </button>
-            </form>
+                    <button type="submit" class="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-200 hover:from-emerald-600 hover:to-emerald-700 sm:w-auto">
+                        <span wire:loading.remove wire:target="saveEntry">{{ __('Сохранить показания') }}</span>
+                        <span wire:loading wire:target="saveEntry">{{ __('Сохранение…') }}</span>
+                    </button>
+                </form>
+            @endif
         </div>
 
         <div class="app-card overflow-hidden">
@@ -118,12 +140,32 @@
                 @forelse ($this->rows as $row)
                     <div wire:key="read-mobile-{{ $row->id }}" class="rounded-2xl border border-slate-200 bg-white p-4 ring-1 ring-slate-100">
                         <p class="text-sm font-bold text-indigo-950">{{ $this->periodLabel($row) }}</p>
-                        <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                            <div><dt class="text-slate-500">{{ __('ХВС') }}</dt><dd class="font-semibold tabular-nums">{{ $row->cold_m3 }}</dd></div>
-                            <div><dt class="text-slate-500">{{ __('Расход ХВС') }}</dt><dd class="font-semibold tabular-nums text-sky-800">{{ $this->consumptionFor($row, 'cold') }}</dd></div>
-                            <div><dt class="text-slate-500">{{ __('ГВС') }}</dt><dd class="font-semibold tabular-nums">{{ $row->hot_m3 }}</dd></div>
-                            <div><dt class="text-slate-500">{{ __('Расход ГВС') }}</dt><dd class="font-semibold tabular-nums text-sky-800">{{ $this->consumptionFor($row, 'hot') }}</dd></div>
-                        </dl>
+                        @if ($this->isEditing($row->id))
+                            <div class="mt-3 space-y-3">
+                                <div>
+                                    <x-input-label :for="'edit-cold-m-'.$row->id" :value="__('ХВС, м³')" />
+                                    <x-text-input wire:model="edit_cold" :id="'edit-cold-m-'.$row->id" type="text" inputmode="decimal" class="mt-1 block w-full rounded-xl text-right font-semibold" />
+                                    <x-input-error :messages="$errors->get('edit_cold')" class="mt-1" />
+                                </div>
+                                <div>
+                                    <x-input-label :for="'edit-hot-m-'.$row->id" :value="__('ГВС, м³')" />
+                                    <x-text-input wire:model="edit_hot" :id="'edit-hot-m-'.$row->id" type="text" inputmode="decimal" class="mt-1 block w-full rounded-xl text-right font-semibold" />
+                                    <x-input-error :messages="$errors->get('edit_hot')" class="mt-1" />
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" wire:click="saveEdit" class="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700">{{ __('Сохранить') }}</button>
+                                    <button type="button" wire:click="cancelEdit" class="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{{ __('Отмена') }}</button>
+                                </div>
+                            </div>
+                        @else
+                            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                <div><dt class="text-slate-500">{{ __('ХВС') }}</dt><dd class="font-semibold tabular-nums">{{ $row->cold_m3 }}</dd></div>
+                                <div><dt class="text-slate-500">{{ __('Расход ХВС') }}</dt><dd class="font-semibold tabular-nums text-sky-800">{{ $this->consumptionFor($row, 'cold') }}</dd></div>
+                                <div><dt class="text-slate-500">{{ __('ГВС') }}</dt><dd class="font-semibold tabular-nums">{{ $row->hot_m3 }}</dd></div>
+                                <div><dt class="text-slate-500">{{ __('Расход ГВС') }}</dt><dd class="font-semibold tabular-nums text-sky-800">{{ $this->consumptionFor($row, 'hot') }}</dd></div>
+                            </dl>
+                            <button type="button" wire:click="startEdit({{ $row->id }})" class="mt-3 inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100">{{ __('Редактировать') }}</button>
+                        @endif
                     </div>
                 @empty
                     <p class="py-6 text-center text-slate-500">{{ __('Показаний за выбранный период нет.') }}</p>
@@ -150,21 +192,47 @@
                                     {{ __('ГВС, м³') }} @if ($sortField === 'hot'){{ $sortAsc ? '↑' : '↓' }}@endif
                                 </button>
                             </th>
-                            <th class="pb-3 text-right font-semibold">{{ __('Расход ГВС, м³') }}</th>
+                            <th class="pb-3 pr-4 text-right font-semibold">{{ __('Расход ГВС, м³') }}</th>
+                            <th class="pb-3 text-right font-semibold">{{ __('Действия') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($this->rows as $row)
-                            <tr wire:key="read-desktop-{{ $row->id }}">
-                                <td class="py-3 pr-4 font-medium text-indigo-950">{{ $this->periodLabel($row) }}</td>
-                                <td class="py-3 pr-4 text-right tabular-nums">{{ $row->cold_m3 }}</td>
-                                <td class="py-3 pr-4 text-right tabular-nums font-medium text-sky-800">{{ $this->consumptionFor($row, 'cold') }}</td>
-                                <td class="py-3 pr-4 text-right tabular-nums">{{ $row->hot_m3 }}</td>
-                                <td class="py-3 text-right tabular-nums font-medium text-sky-800">{{ $this->consumptionFor($row, 'hot') }}</td>
-                            </tr>
+                            @if ($this->isEditing($row->id))
+                                <tr wire:key="read-desktop-{{ $row->id }}" class="bg-indigo-50/40">
+                                    <td class="py-3 pr-4 font-medium text-indigo-950">{{ $this->periodLabel($row) }}</td>
+                                    <td class="py-3 pr-4 text-right">
+                                        <x-text-input wire:model="edit_cold" type="text" inputmode="decimal" class="block w-28 rounded-xl text-right font-semibold" />
+                                        <x-input-error :messages="$errors->get('edit_cold')" class="mt-1" />
+                                    </td>
+                                    <td class="py-3 pr-4 text-right text-slate-400">—</td>
+                                    <td class="py-3 pr-4 text-right">
+                                        <x-text-input wire:model="edit_hot" type="text" inputmode="decimal" class="block w-28 rounded-xl text-right font-semibold" />
+                                        <x-input-error :messages="$errors->get('edit_hot')" class="mt-1" />
+                                    </td>
+                                    <td class="py-3 pr-4 text-right text-slate-400">—</td>
+                                    <td class="py-3 text-right">
+                                        <div class="inline-flex gap-2">
+                                            <button type="button" wire:click="saveEdit" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">{{ __('Сохранить') }}</button>
+                                            <button type="button" wire:click="cancelEdit" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{{ __('Отмена') }}</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @else
+                                <tr wire:key="read-desktop-{{ $row->id }}">
+                                    <td class="py-3 pr-4 font-medium text-indigo-950">{{ $this->periodLabel($row) }}</td>
+                                    <td class="py-3 pr-4 text-right tabular-nums">{{ $row->cold_m3 }}</td>
+                                    <td class="py-3 pr-4 text-right tabular-nums font-medium text-sky-800">{{ $this->consumptionFor($row, 'cold') }}</td>
+                                    <td class="py-3 pr-4 text-right tabular-nums">{{ $row->hot_m3 }}</td>
+                                    <td class="py-3 pr-4 text-right tabular-nums font-medium text-sky-800">{{ $this->consumptionFor($row, 'hot') }}</td>
+                                    <td class="py-3 text-right">
+                                        <button type="button" wire:click="startEdit({{ $row->id }})" class="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100">{{ __('Редактировать') }}</button>
+                                    </td>
+                                </tr>
+                            @endif
                         @empty
                             <tr>
-                                <td colspan="5" class="py-8 text-center text-slate-500">{{ __('Показаний за выбранный период нет.') }}</td>
+                                <td colspan="6" class="py-8 text-center text-slate-500">{{ __('Показаний за выбранный период нет.') }}</td>
                             </tr>
                         @endforelse
                     </tbody>

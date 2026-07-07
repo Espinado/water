@@ -4,6 +4,8 @@ namespace App\Livewire\Manager;
 
 use App\Models\Apartment;
 use App\Models\MeterReading;
+use App\Services\MeterSubmissionWindow;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -37,6 +39,12 @@ class ApartmentReadingsHistory extends Component
 
     public string $entry_hot = '';
 
+    public ?int $editingId = null;
+
+    public string $edit_cold = '';
+
+    public string $edit_hot = '';
+
     public function mount(Apartment $apartment): void
     {
         $this->apartment = $apartment->load([
@@ -53,36 +61,105 @@ class ApartmentReadingsHistory extends Component
         $this->filterYear = $latest?->year ?? (int) now()->year;
         $this->filterMonth = $latest?->month ?? (int) now()->month;
 
-        $this->entryYear = (int) now()->year;
-        $this->entryMonth = (int) now()->month;
+        $this->syncEntryToActionablePeriod();
         $this->loadEntryValues();
+    }
+
+    protected function syncEntryToActionablePeriod(): void
+    {
+        $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
+        $this->entryYear = $period['year'] ?? (int) now()->year;
+        $this->entryMonth = $period['month'] ?? (int) now()->month;
+    }
+
+    #[Computed]
+    public function entryLockedPeriodLabel(): ?string
+    {
+        $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
+        if ($period === null) {
+            return null;
+        }
+
+        return Carbon::create($period['year'], $period['month'], 1)
+            ->locale(app()->getLocale())
+            ->translatedFormat('F Y');
     }
 
     public function updatedEntryYear(): void
     {
+        if ($this->enforceActionableEntryPeriod()) {
+            return;
+        }
+
         $this->loadEntryValues();
     }
 
     public function updatedEntryMonth(): void
     {
+        if ($this->enforceActionableEntryPeriod()) {
+            return;
+        }
+
         $this->loadEntryValues();
+    }
+
+    protected function enforceActionableEntryPeriod(): bool
+    {
+        $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
+        if ($period === null) {
+            return false;
+        }
+
+        if ($this->entryYear !== $period['year'] || $this->entryMonth !== $period['month']) {
+            $this->syncEntryToActionablePeriod();
+            $this->loadEntryValues();
+
+            return true;
+        }
+
+        return false;
     }
 
     protected function loadEntryValues(): void
     {
-        $reading = MeterReading::query()
-            ->where('apartment_id', $this->apartment->id)
-            ->where('year', $this->entryYear)
-            ->where('month', $this->entryMonth)
-            ->first();
+        $reading = $this->entryReading();
 
         $this->entry_cold = $reading ? (string) $reading->cold_m3 : '';
         $this->entry_hot = $reading ? (string) $reading->hot_m3 : '';
         $this->resetValidation();
     }
 
+    protected function entryReading(): ?MeterReading
+    {
+        return MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->where('year', $this->entryYear)
+            ->where('month', $this->entryMonth)
+            ->first();
+    }
+
+    #[Computed]
+    public function entryAlreadySubmitted(): bool
+    {
+        return $this->entryReading() !== null;
+    }
+
     public function saveEntry(): void
     {
+        if ($this->enforceActionableEntryPeriod()) {
+            session()->flash('reading_error', __('Сейчас можно вносить показания только за период приёма: :period.', [
+                'period' => $this->entryLockedPeriodLabel,
+            ]));
+
+            return;
+        }
+
+        if ($this->entryAlreadySubmitted) {
+            session()->flash('reading_error', __('Показания за этот период уже внесены. Отредактируйте их в таблице истории ниже.'));
+
+            return;
+        }
+
         Gate::authorize('record-meter-reading', [$this->apartment, $this->entryYear, $this->entryMonth]);
 
         Validator::make(
@@ -115,9 +192,80 @@ class ApartmentReadingsHistory extends Component
         $this->filterYear = $this->entryYear;
         $this->filterMonth = $this->entryMonth;
         $this->resetPage();
+        unset($this->entryAlreadySubmitted);
 
         session()->flash('reading_saved', __('Показания сохранены за :period.', [
             'period' => \Carbon\Carbon::create($this->entryYear, $this->entryMonth, 1)
+                ->locale(app()->getLocale())
+                ->translatedFormat('F Y'),
+        ]));
+    }
+
+    public function startEdit(int $readingId): void
+    {
+        $reading = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->whereKey($readingId)
+            ->firstOrFail();
+
+        $this->editingId = $reading->id;
+        $this->edit_cold = (string) $reading->cold_m3;
+        $this->edit_hot = (string) $reading->hot_m3;
+        $this->resetValidation();
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->editingId = null;
+        $this->edit_cold = '';
+        $this->edit_hot = '';
+        $this->resetValidation();
+    }
+
+    public function isEditing(int $readingId): bool
+    {
+        return $this->editingId === $readingId;
+    }
+
+    public function saveEdit(): void
+    {
+        if ($this->editingId === null) {
+            return;
+        }
+
+        $reading = MeterReading::query()
+            ->where('apartment_id', $this->apartment->id)
+            ->whereKey($this->editingId)
+            ->firstOrFail();
+
+        Gate::authorize('update-meter-reading', $reading);
+
+        Validator::make(
+            [
+                'edit_cold' => $this->edit_cold,
+                'edit_hot' => $this->edit_hot,
+            ],
+            [
+                'edit_cold' => ['required', 'numeric', 'min:0'],
+                'edit_hot' => ['required', 'numeric', 'min:0'],
+            ],
+            [],
+            ['edit_cold' => __('холодная вода'), 'edit_hot' => __('горячая вода')],
+        )->validate();
+
+        $reading->update([
+            'cold_m3' => $this->edit_cold,
+            'hot_m3' => $this->edit_hot,
+            'recorded_by_user_id' => auth()->id(),
+            'entered_by_manager' => true,
+        ]);
+
+        $this->cancelEdit();
+        $this->loadEntryValues();
+        unset($this->entryAlreadySubmitted);
+
+        session()->flash('reading_saved', __('Показания обновлены за :period.', [
+            'period' => \Carbon\Carbon::create($reading->year, $reading->month, 1)
                 ->locale(app()->getLocale())
                 ->translatedFormat('F Y'),
         ]));

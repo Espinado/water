@@ -24,6 +24,7 @@
             :building-id="$building_id"
             year-model="statusYear"
             month-model="statusMonth"
+            :locked-period-label="$this->managerLockedPeriodLabel"
         />
 
         @if ($this->buildings->isEmpty())

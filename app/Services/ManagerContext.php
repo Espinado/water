@@ -22,12 +22,12 @@ class ManagerContext
             }
         }
 
-        if (! Session::has(self::SESSION_YEAR) || ! Session::has(self::SESSION_MONTH)) {
-            $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
-            $this->setPeriod(
-                $period['year'] ?? (int) now()->year,
-                $period['month'] ?? (int) now()->month,
-            );
+        $period = app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
+        if ($period !== null) {
+            // Пока окно приёма открыто — тот же период, что у жильца (напр. 8 июля → июнь).
+            $this->setPeriod($period['year'], $period['month']);
+        } elseif (! Session::has(self::SESSION_YEAR) || ! Session::has(self::SESSION_MONTH)) {
+            $this->setPeriod((int) now()->year, (int) now()->month);
         }
     }
 
@@ -65,5 +65,13 @@ class ManagerContext
     {
         Session::put(self::SESSION_YEAR, $year);
         Session::put(self::SESSION_MONTH, $month);
+    }
+
+    /**
+     * @return array{year: int, month: int}|null
+     */
+    public function actionablePeriod(): ?array
+    {
+        return app(MeterSubmissionWindow::class)->residentActionablePeriodAt();
     }
 }

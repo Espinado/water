@@ -4,6 +4,7 @@
     'yearModel' => 'statusYear',
     'monthModel' => 'statusMonth',
     'periodTitle' => null,
+    'lockedPeriodLabel' => null,
 ])
 
 <div {{ $attributes->merge(['class' => 'space-y-4']) }}>
@@ -38,19 +39,25 @@
         <p class="text-sm font-semibold text-indigo-900">
             {{ $periodTitle ?? __('Расчётный период') }}
         </p>
-        <div class="mt-3 flex flex-wrap gap-3">
-            <div class="w-28">
-                <x-input-label :for="'mgr-year-'.$yearModel" :value="__('Год')" class="text-xs" />
-                <x-text-input wire:model.live="{{ $yearModel }}" :id="'mgr-year-'.$yearModel" type="number" class="mt-1 block w-full" min="2000" max="2100" />
+        @if ($lockedPeriodLabel)
+            <p class="mt-2 text-sm leading-relaxed text-slate-700">
+                {!! __('Сейчас приём показаний за <strong>:period</strong> — тот же период, что у жильца.', ['period' => $lockedPeriodLabel]) !!}
+            </p>
+        @else
+            <div class="mt-3 flex flex-wrap gap-3">
+                <div class="w-28">
+                    <x-input-label :for="'mgr-year-'.$yearModel" :value="__('Год')" class="text-xs" />
+                    <x-text-input wire:model.live="{{ $yearModel }}" :id="'mgr-year-'.$yearModel" type="number" class="mt-1 block w-full" min="2000" max="2100" />
+                </div>
+                <div class="min-w-[10rem] flex-1 sm:max-w-xs">
+                    <x-input-label :for="'mgr-month-'.$monthModel" :value="__('Месяц')" class="text-xs" />
+                    <select wire:model.live="{{ $monthModel }}" :id="'mgr-month-'.$monthModel" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @for ($mo = 1; $mo <= 12; $mo++)
+                            <option value="{{ $mo }}">{{ \Carbon\Carbon::create(null, $mo, 1)->locale(app()->getLocale())->translatedFormat('F') }}</option>
+                        @endfor
+                    </select>
+                </div>
             </div>
-            <div class="min-w-[10rem] flex-1 sm:max-w-xs">
-                <x-input-label :for="'mgr-month-'.$monthModel" :value="__('Месяц')" class="text-xs" />
-                <select wire:model.live="{{ $monthModel }}" :id="'mgr-month-'.$monthModel" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    @for ($mo = 1; $mo <= 12; $mo++)
-                        <option value="{{ $mo }}">{{ \Carbon\Carbon::create(null, $mo, 1)->locale(app()->getLocale())->translatedFormat('F') }}</option>
-                    @endfor
-                </select>
-            </div>
-        </div>
+        @endif
     </div>
 </div>

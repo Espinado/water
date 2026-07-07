@@ -23,6 +23,7 @@
             :buildings="$this->buildings"
             :building-id="$building_id"
             :period-title="__('Период для статуса показаний')"
+            :locked-period-label="$this->managerLockedPeriodLabel"
         />
 
         @if ($this->buildings->isEmpty())

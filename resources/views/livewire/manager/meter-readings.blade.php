@@ -20,6 +20,7 @@
             year-model="year"
             month-model="month"
             :period-title="__('Расчётный период')"
+            :locked-period-label="$this->managerLockedPeriodLabel"
         />
 
         @if ($this->buildings->isEmpty())
