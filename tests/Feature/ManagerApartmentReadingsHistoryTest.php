@@ -87,4 +87,27 @@ class ManagerApartmentReadingsHistoryTest extends TestCase
             ->assertSet('filterMonth', 1)
             ->assertSee(__('Показаний за выбранный период нет.'));
     }
+
+    public function test_manager_can_enter_reading_manually(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $building = Building::factory()->create();
+        $apartment = Apartment::factory()->for($building)->create(['number' => '6']);
+
+        Livewire::actingAs($manager)
+            ->test(ApartmentReadingsHistory::class, ['apartment' => $apartment])
+            ->set('entryYear', 2026)
+            ->set('entryMonth', 5)
+            ->set('entry_cold', '123.5')
+            ->set('entry_hot', '77.25')
+            ->call('saveEntry')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('meter_readings', [
+            'apartment_id' => $apartment->id,
+            'year' => 2026,
+            'month' => 5,
+            'entered_by_manager' => true,
+        ]);
+    }
 }

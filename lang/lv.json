@@ -272,5 +272,10 @@
     "К дому": "Uz māju",
     "История по месяцам": "Vēsture pa mēnešiem",
     "Все месяцы": "Visi mēneši",
-    "Показаний за выбранный период нет.": "Izvēlētajam periodam rādījumu nav."
+    "Показаний за выбранный период нет.": "Izvēlētajam periodam rādījumu nav.",
+    "Ввод показаний": "Rādījumu ievade",
+    "Управляющий вносит показания за выбранный период. После сохранения повторная сдача жильцом за этот период закрывается.": "Pārvaldnieks ievada rādījumus par izvēlēto periodu. Pēc saglabāšanas atkārtota iesniegšana no iedzīvotāja par šo periodu tiek slēgta.",
+    "Сохранить показания": "Saglabāt rādījumus",
+    "Сохранение…": "Saglabā…",
+    "Показания сохранены за :period.": "Rādījumi saglabāti par :period."
 }

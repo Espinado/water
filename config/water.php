@@ -15,7 +15,7 @@ return [
 
     'submission_opens_day' => 28,
 
-    'submission_closes_day' => 10,
+    'submission_closes_day' => 15,
 
     /*
     | Временно для тестов (OCR и т.п.): true — жилец всегда в «открытом» окне
