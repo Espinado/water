@@ -10,51 +10,62 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('services', function (Blueprint $table) {
-            $table->string('code', 64)->primary();
-            $table->string('name_ru');
-            $table->string('name_lv')->nullable();
-            $table->string('unit', 16);
-            $table->string('calc_type', 32);
-            $table->unsignedSmallInteger('sort_order')->default(0);
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('services')) {
+            Schema::create('services', function (Blueprint $table) {
+                $table->string('code', 64)->primary();
+                $table->string('name_ru');
+                $table->string('name_lv')->nullable();
+                $table->string('unit', 16);
+                $table->string('calc_type', 32);
+                $table->unsignedSmallInteger('sort_order')->default(0);
+                $table->timestamps();
+            });
+        }
 
-        Schema::create('service_providers', function (Blueprint $table) {
-            $table->id();
-            $table->string('code', 64)->unique();
-            $table->string('name');
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('service_providers')) {
+            Schema::create('service_providers', function (Blueprint $table) {
+                $table->id();
+                $table->string('code', 64)->unique();
+                $table->string('name');
+                $table->timestamps();
+            });
+        }
 
-        Schema::create('provider_service_rates', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('service_provider_id')->constrained('service_providers')->cascadeOnDelete();
-            $table->string('service_code', 64);
-            $table->decimal('price', 10, 2);
-            $table->timestamps();
+        if (! Schema::hasTable('provider_service_rates')) {
+            Schema::create('provider_service_rates', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('service_provider_id')->constrained('service_providers')->cascadeOnDelete();
+                $table->string('service_code', 64);
+                $table->decimal('price', 10, 2);
+                $table->timestamps();
 
-            $table->foreign('service_code')->references('code')->on('services')->cascadeOnDelete();
-            $table->unique(['service_provider_id', 'service_code']);
-        });
+                $table->foreign('service_code')->references('code')->on('services')->cascadeOnDelete();
+                $table->unique(['service_provider_id', 'service_code']);
+            });
+        }
 
-        Schema::create('building_service_providers', function (Blueprint $table) {
-            $table->foreignId('building_id')->constrained()->cascadeOnDelete();
-            $table->string('service_code', 64);
-            $table->foreignId('service_provider_id')->constrained('service_providers')->cascadeOnDelete();
-            $table->timestamps();
+        if (! Schema::hasTable('building_service_providers')) {
+            Schema::create('building_service_providers', function (Blueprint $table) {
+                $table->foreignId('building_id')->constrained()->cascadeOnDelete();
+                $table->string('service_code', 64);
+                $table->foreignId('service_provider_id')->constrained('service_providers')->cascadeOnDelete();
+                $table->timestamps();
 
-            $table->foreign('service_code')->references('code')->on('services')->cascadeOnDelete();
-            $table->primary(['building_id', 'service_code']);
-        });
+                $table->foreign('service_code')->references('code')->on('services')->cascadeOnDelete();
+                $table->primary(['building_id', 'service_code']);
+            });
+        }
 
-        $this->seedServiceCatalog();
+        if (DB::table('services')->count() === 0) {
+            $this->seedServiceCatalog();
+        }
 
         if (Schema::hasTable('water_suppliers')) {
-            $this->migrateWaterSuppliers();
-            Schema::table('buildings', function (Blueprint $table) {
-                $table->dropConstrainedForeignId('water_supplier_id');
-            });
+            if (DB::table('water_suppliers')->exists() && DB::table('service_providers')->count() === 0) {
+                $this->migrateWaterSuppliers();
+            }
+
+            $this->dropWaterSupplierFromBuildings();
             Schema::drop('water_suppliers');
         }
     }
@@ -65,6 +76,32 @@ return new class extends Migration
         Schema::dropIfExists('provider_service_rates');
         Schema::dropIfExists('service_providers');
         Schema::dropIfExists('services');
+    }
+
+    protected function dropWaterSupplierFromBuildings(): void
+    {
+        if (! Schema::hasColumn('buildings', 'water_supplier_id')) {
+            return;
+        }
+
+        $foreignKey = collect(DB::select(
+            'SELECT CONSTRAINT_NAME AS name
+             FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND COLUMN_NAME = ?
+               AND REFERENCED_TABLE_NAME IS NOT NULL
+             LIMIT 1',
+            ['buildings', 'water_supplier_id'],
+        ))->value('name');
+
+        Schema::table('buildings', function (Blueprint $table) use ($foreignKey) {
+            if ($foreignKey !== null) {
+                $table->dropForeign($foreignKey);
+            }
+
+            $table->dropColumn('water_supplier_id');
+        });
     }
 
     protected function seedServiceCatalog(): void
