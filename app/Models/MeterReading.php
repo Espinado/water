@@ -13,6 +13,13 @@ class MeterReading extends Model
         'month',
         'cold_m3',
         'hot_m3',
+        'cold_consumption_m3',
+        'hot_consumption_m3',
+        'cold_price_per_m3',
+        'hot_price_per_m3',
+        'cold_cost',
+        'hot_cost',
+        'total_water_cost',
         'recorded_by_user_id',
         'entered_by_manager',
     ];
@@ -22,6 +29,13 @@ class MeterReading extends Model
         return [
             'cold_m3' => 'decimal:3',
             'hot_m3' => 'decimal:3',
+            'cold_consumption_m3' => 'decimal:3',
+            'hot_consumption_m3' => 'decimal:3',
+            'cold_price_per_m3' => 'decimal:2',
+            'hot_price_per_m3' => 'decimal:2',
+            'cold_cost' => 'decimal:2',
+            'hot_cost' => 'decimal:2',
+            'total_water_cost' => 'decimal:2',
             'entered_by_manager' => 'boolean',
         ];
     }

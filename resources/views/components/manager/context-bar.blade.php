@@ -18,16 +18,16 @@
                         wire:key="mgr-building-{{ $b->id }}"
                         role="tab"
                         @class([
-                            'manager-building-tab whitespace-nowrap rounded-2xl px-4 py-2.5 text-sm font-semibold transition min-h-[44px]',
-                            'bg-indigo-600 text-white shadow-md shadow-indigo-200' => (int) $buildingId === (int) $b->id,
-                            'bg-white/90 text-slate-700 ring-1 ring-slate-200 hover:bg-indigo-50 hover:text-indigo-800' => (int) $buildingId !== (int) $b->id,
+                            'k16-building-tab',
+                            'k16-building-tab-active' => (int) $buildingId === (int) $b->id,
+                            'k16-building-tab-idle' => (int) $buildingId !== (int) $b->id,
                         ])
                     >
                         {{ $b->name }}
                         <span @class([
                             'ms-1 font-normal',
-                            'text-indigo-100' => (int) $buildingId === (int) $b->id,
-                            'text-slate-400' => (int) $buildingId !== (int) $b->id,
+                            'text-white/80' => (int) $buildingId === (int) $b->id,
+                            'text-k16-text-muted' => (int) $buildingId !== (int) $b->id,
                         ])>({{ $b->apartments_count }})</span>
                     </button>
                 @endforeach
@@ -35,23 +35,23 @@
         </div>
     @endif
 
-    <div class="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm ring-1 ring-slate-100 sm:p-5">
-        <p class="text-sm font-semibold text-indigo-900">
+    <div class="k16-card p-4 sm:p-5">
+        <p class="text-base font-semibold text-k16-text">
             {{ $periodTitle ?? __('Расчётный период') }}
         </p>
         @if ($lockedPeriodLabel)
-            <p class="mt-2 text-sm leading-relaxed text-slate-700">
+            <p class="mt-2 text-k16-body leading-relaxed text-k16-text-muted">
                 {!! __('Сейчас приём показаний за <strong>:period</strong> — тот же период, что у жильца.', ['period' => $lockedPeriodLabel]) !!}
             </p>
         @else
             <div class="mt-3 flex flex-wrap gap-3">
                 <div class="w-28">
-                    <x-input-label :for="'mgr-year-'.$yearModel" :value="__('Год')" class="text-xs" />
+                    <x-input-label :for="'mgr-year-'.$yearModel" :value="__('Год')" />
                     <x-text-input wire:model.live="{{ $yearModel }}" :id="'mgr-year-'.$yearModel" type="number" class="mt-1 block w-full" min="2000" max="2100" />
                 </div>
                 <div class="min-w-[10rem] flex-1 sm:max-w-xs">
-                    <x-input-label :for="'mgr-month-'.$monthModel" :value="__('Месяц')" class="text-xs" />
-                    <select wire:model.live="{{ $monthModel }}" :id="'mgr-month-'.$monthModel" class="mt-1 block w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <x-input-label :for="'mgr-month-'.$monthModel" :value="__('Месяц')" />
+                    <select wire:model.live="{{ $monthModel }}" :id="'mgr-month-'.$monthModel" class="mt-1 block w-full rounded-xl border-k16-border text-k16-body shadow-sm focus:border-k16-accent focus:ring-k16-accent">
                         @for ($mo = 1; $mo <= 12; $mo++)
                             <option value="{{ $mo }}">{{ \Carbon\Carbon::create(null, $mo, 1)->locale(app()->getLocale())->translatedFormat('F') }}</option>
                         @endfor

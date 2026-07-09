@@ -21,7 +21,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('layouts.app')]
+#[Layout('layouts.manager')]
 class HouseholdPanel extends Component
 {
     use HasManagerContext;
@@ -41,7 +41,11 @@ class HouseholdPanel extends Component
 
     public string $new_building_address = '';
 
+    public bool $creatingApartment = false;
+
     public string $new_apartment_number = '';
+
+    public string $new_apartment_area_m2 = '';
 
     public ?int $editingBuildingId = null;
 
@@ -52,6 +56,8 @@ class HouseholdPanel extends Component
     public ?int $editingApartmentId = null;
 
     public string $edit_apartment_number = '';
+
+    public string $edit_apartment_area_m2 = '';
 
     public ?int $editingResidentId = null;
 
@@ -212,6 +218,40 @@ class HouseholdPanel extends Component
         session()->flash('mgr_ok', __('Дом удалён.'));
     }
 
+    public function startCreateApartment(): void
+    {
+        if (! $this->building_id || ! $this->inBuilding) {
+            return;
+        }
+
+        $this->creatingApartment = true;
+        $this->reset([
+            'new_apartment_number',
+            'new_apartment_area_m2',
+            'resident_first_name',
+            'resident_last_name',
+            'resident_phone',
+            'resident_email',
+        ]);
+        $this->resetValidation();
+        $this->dispatch('open-modal', 'create-apartment');
+    }
+
+    public function cancelCreateApartment(): void
+    {
+        $this->creatingApartment = false;
+        $this->reset([
+            'new_apartment_number',
+            'new_apartment_area_m2',
+            'resident_first_name',
+            'resident_last_name',
+            'resident_phone',
+            'resident_email',
+        ]);
+        $this->resetValidation();
+        $this->dispatch('close-modal', 'create-apartment');
+    }
+
     public function createApartment(): void
     {
         $this->validate([
@@ -222,15 +262,30 @@ class HouseholdPanel extends Component
                 'max:16',
                 Rule::unique('apartments', 'number')->where(fn ($q) => $q->where('building_id', $this->building_id)),
             ],
+            'new_apartment_area_m2' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+            'resident_first_name' => ['required', 'string', 'max:100'],
+            'resident_last_name' => ['required', 'string', 'max:100'],
+            'resident_phone' => ['nullable', 'string', 'max:32'],
+            'resident_email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        ], [], [
+            'new_apartment_area_m2' => __('Площадь, м²'),
+            'resident_first_name' => __('Имя'),
+            'resident_last_name' => __('Фамилия'),
+            'resident_phone' => __('Телефон'),
+            'resident_email' => __('Почта'),
         ]);
 
-        Apartment::query()->create([
+        $apartment = Apartment::query()->create([
             'building_id' => $this->building_id,
             'number' => $this->new_apartment_number,
+            'area_m2' => $this->new_apartment_area_m2 !== '' ? $this->new_apartment_area_m2 : null,
         ]);
 
-        $this->new_apartment_number = '';
-        session()->flash('mgr_ok', __('Квартира добавлена.'));
+        $user = $this->createResidentUser($apartment);
+        $this->sendResidentInvitation($user);
+
+        $this->cancelCreateApartment();
+        session()->flash('mgr_ok', __('Квартира и жилец добавлены.'));
     }
 
     public function startEditApartment(int $apartmentId): void
@@ -238,6 +293,7 @@ class HouseholdPanel extends Component
         $apartment = $this->findApartmentInBuilding($apartmentId);
         $this->editingApartmentId = $apartment->id;
         $this->edit_apartment_number = $apartment->number;
+        $this->edit_apartment_area_m2 = $apartment->area_m2 !== null ? (string) $apartment->area_m2 : '';
         $this->resetValidation();
         $this->dispatch('open-modal', 'edit-apartment');
     }
@@ -245,7 +301,7 @@ class HouseholdPanel extends Component
     public function cancelEditApartment(): void
     {
         $this->editingApartmentId = null;
-        $this->edit_apartment_number = '';
+        $this->reset(['edit_apartment_number', 'edit_apartment_area_m2']);
         $this->resetValidation();
         $this->dispatch('close-modal', 'edit-apartment');
     }
@@ -267,9 +323,15 @@ class HouseholdPanel extends Component
                     ->where(fn ($q) => $q->where('building_id', $this->building_id))
                     ->ignore($apartment->id),
             ],
+            'edit_apartment_area_m2' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+        ], [], [
+            'edit_apartment_area_m2' => __('Площадь, м²'),
         ]);
 
-        $apartment->update(['number' => $this->edit_apartment_number]);
+        $apartment->update([
+            'number' => $this->edit_apartment_number,
+            'area_m2' => $this->edit_apartment_area_m2 !== '' ? $this->edit_apartment_area_m2 : null,
+        ]);
         session()->flash('mgr_ok', __('Квартира обновлена.'));
         $this->cancelEditApartment();
     }
@@ -324,11 +386,25 @@ class HouseholdPanel extends Component
             'resident_last_name' => ['required', 'string', 'max:100'],
             'resident_phone' => ['nullable', 'string', 'max:32'],
             'resident_email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        ], [], [
+            'resident_first_name' => __('Имя'),
+            'resident_last_name' => __('Фамилия'),
+            'resident_phone' => __('Телефон'),
+            'resident_email' => __('Почта'),
         ]);
 
+        $user = $this->createResidentUser($apartment);
+        $this->sendResidentInvitation($user);
+
+        session()->flash('mgr_ok', __('Жилец добавлен. На :email отправлена ссылка для пароля.', ['email' => $user->email]));
+        $this->cancelCreateResident();
+    }
+
+    protected function createResidentUser(Apartment $apartment): User
+    {
         $fullName = trim($this->resident_last_name.' '.$this->resident_first_name);
 
-        $user = User::query()->create([
+        return User::query()->create([
             'name' => $fullName,
             'first_name' => $this->resident_first_name,
             'last_name' => $this->resident_last_name,
@@ -339,26 +415,32 @@ class HouseholdPanel extends Component
             'apartment_id' => $apartment->id,
             'email_verified_at' => now(),
         ]);
+    }
 
+    protected function sendResidentInvitation(User $user): void
+    {
         $status = Password::sendResetLink(['email' => $user->email]);
 
         if ($status === Password::RESET_LINK_SENT) {
             $user->forceFill(['invitation_sent_at' => now()])->save();
-            session()->flash('mgr_ok', __('Жилец добавлен. На :email отправлена ссылка для пароля.', ['email' => $user->email]));
-        } else {
-            session()->flash('mgr_ok', __('Жилец добавлен. Письмо не отправилось — отправьте ссылку позже.'));
-            if (is_string($status)) {
-                session()->flash('mgr_warn', __($status));
-            }
+
+            return;
         }
 
-        $this->cancelCreateResident();
+        if (is_string($status)) {
+            session()->flash('mgr_warn', __($status));
+        }
     }
 
     public function startEditResident(int $userId): void
     {
         $user = $this->findResidentInBuilding($userId);
+        $user->load('apartment');
+
         $this->editingResidentId = $user->id;
+        $this->editingApartmentId = $user->apartment?->id;
+        $this->edit_apartment_number = (string) ($user->apartment?->number ?? '');
+        $this->edit_apartment_area_m2 = $user->apartment?->area_m2 !== null ? (string) $user->apartment->area_m2 : '';
         $this->edit_resident_first_name = (string) ($user->first_name ?? '');
         $this->edit_resident_last_name = (string) ($user->last_name ?? '');
         $this->edit_resident_phone = (string) ($user->phone ?? '');
@@ -370,7 +452,15 @@ class HouseholdPanel extends Component
     public function cancelEditResident(): void
     {
         $this->editingResidentId = null;
-        $this->reset(['edit_resident_first_name', 'edit_resident_last_name', 'edit_resident_phone', 'edit_resident_email']);
+        $this->editingApartmentId = null;
+        $this->reset([
+            'edit_apartment_number',
+            'edit_apartment_area_m2',
+            'edit_resident_first_name',
+            'edit_resident_last_name',
+            'edit_resident_phone',
+            'edit_resident_email',
+        ]);
         $this->resetValidation();
         $this->dispatch('close-modal', 'edit-resident');
     }
@@ -382,18 +472,43 @@ class HouseholdPanel extends Component
         }
 
         $user = $this->findResidentInBuilding($this->editingResidentId);
+        $user->load('apartment');
+        $apartment = $user->apartment;
 
-        $this->validate([
+        $rules = [
             'edit_resident_first_name' => ['required', 'string', 'max:100'],
             'edit_resident_last_name' => ['required', 'string', 'max:100'],
             'edit_resident_phone' => ['nullable', 'string', 'max:32'],
             'edit_resident_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-        ], [], [
+        ];
+
+        if ($apartment) {
+            $rules['edit_apartment_number'] = [
+                'required',
+                'string',
+                'max:16',
+                Rule::unique('apartments', 'number')
+                    ->where(fn ($q) => $q->where('building_id', $this->building_id))
+                    ->ignore($apartment->id),
+            ];
+            $rules['edit_apartment_area_m2'] = ['nullable', 'numeric', 'min:0', 'max:9999.99'];
+        }
+
+        $this->validate($rules, [], [
             'edit_resident_first_name' => __('Имя'),
             'edit_resident_last_name' => __('Фамилия'),
             'edit_resident_phone' => __('Телефон'),
             'edit_resident_email' => __('Почта'),
+            'edit_apartment_number' => __('Номер квартиры'),
+            'edit_apartment_area_m2' => __('Площадь, м²'),
         ]);
+
+        if ($apartment) {
+            $apartment->update([
+                'number' => $this->edit_apartment_number,
+                'area_m2' => $this->edit_apartment_area_m2 !== '' ? $this->edit_apartment_area_m2 : null,
+            ]);
+        }
 
         $user->forceFill([
             'first_name' => $this->edit_resident_first_name,
@@ -403,7 +518,7 @@ class HouseholdPanel extends Component
             'email' => $this->edit_resident_email,
         ])->save();
 
-        session()->flash('mgr_ok', __('Данные жильца обновлены.'));
+        session()->flash('mgr_ok', __('Данные обновлены.'));
         $this->cancelEditResident();
     }
 
@@ -464,6 +579,7 @@ class HouseholdPanel extends Component
     {
         $this->cancelEditBuilding();
         $this->cancelEditApartment();
+        $this->cancelCreateApartment();
         $this->cancelEditResident();
         $this->cancelCreateResident();
     }
@@ -471,7 +587,10 @@ class HouseholdPanel extends Component
     #[Computed]
     public function buildings(): Collection
     {
-        return Building::query()->withCount('apartments')->orderBy('name')->get();
+        return Building::query()
+            ->withCount('apartments')
+            ->orderBy('name')
+            ->get();
     }
 
     #[Computed]

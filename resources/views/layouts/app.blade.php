@@ -5,7 +5,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        @php($pwaAppKey = $pwaAppKey ?? app(\App\Services\PwaContext::class)->appKey())
+
+        <title>@isset($pwaAppKey){{ config("pwa.apps.{$pwaAppKey}.name") }}@else{{ config('app.name', 'Laravel') }}@endisset</title>
+
+        @isset($pwaAppKey)
+            <x-pwa-meta :app-key="$pwaAppKey" />
+        @endisset
+
+        <x-confirm-save-meta />
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -32,5 +40,11 @@
                 {{ $slot }}
             </main>
         </div>
+
+        <x-wait-overlay
+            id="app-page-loading"
+            :color="($pwaAppKey ?? '') === 'manager' ? 'emerald' : 'sky'"
+            class="flex"
+        />
     </body>
 </html>

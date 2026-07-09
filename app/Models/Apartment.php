@@ -16,7 +16,15 @@ class Apartment extends Model
     protected $fillable = [
         'building_id',
         'number',
+        'area_m2',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'area_m2' => 'decimal:2',
+        ];
+    }
 
     public function building(): BelongsTo
     {

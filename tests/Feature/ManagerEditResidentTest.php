@@ -33,6 +33,7 @@ class ManagerEditResidentTest extends TestCase
             ->set('building_id', $building->id)
             ->call('startEditResident', $resident->id)
             ->assertSet('edit_first_name', 'Julja')
+            ->assertSet('editingResidentId', $resident->id)
             ->assertSet('edit_last_name', 'Junusova')
             ->assertSet('edit_email', 'julja@example.com')
             ->set('edit_first_name', 'Julia')

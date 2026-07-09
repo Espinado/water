@@ -21,4 +21,9 @@ class Building extends Model
     {
         return $this->hasMany(Apartment::class);
     }
+
+    public function serviceProviders(): HasMany
+    {
+        return $this->hasMany(BuildingServiceProvider::class);
+    }
 }

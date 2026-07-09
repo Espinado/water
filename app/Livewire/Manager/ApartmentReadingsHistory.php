@@ -5,6 +5,7 @@ namespace App\Livewire\Manager;
 use App\Models\Apartment;
 use App\Models\MeterReading;
 use App\Services\MeterSubmissionWindow;
+use App\Services\RecordMeterReading;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
@@ -16,7 +17,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('layouts.app')]
+#[Layout('layouts.manager')]
 class ApartmentReadingsHistory extends Component
 {
     use WithPagination;
@@ -175,7 +176,7 @@ class ApartmentReadingsHistory extends Component
             ['entry_cold' => __('холодная вода'), 'entry_hot' => __('горячая вода')],
         )->validate();
 
-        MeterReading::query()->updateOrCreate(
+        app(RecordMeterReading::class)->upsert(
             [
                 'apartment_id' => $this->apartment->id,
                 'year' => $this->entryYear,
@@ -253,7 +254,7 @@ class ApartmentReadingsHistory extends Component
             ['edit_cold' => __('холодная вода'), 'edit_hot' => __('горячая вода')],
         )->validate();
 
-        $reading->update([
+        app(RecordMeterReading::class)->update($reading, [
             'cold_m3' => $this->edit_cold,
             'hot_m3' => $this->edit_hot,
             'recorded_by_user_id' => auth()->id(),
@@ -364,6 +365,15 @@ class ApartmentReadingsHistory extends Component
         $previous = (float) ($field === 'cold' ? $prev->cold_m3 : $prev->hot_m3);
 
         return number_format($current - $previous, 3, '.', '');
+    }
+
+    public function formatCost(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        return number_format((float) $value, 2, '.', '').' €';
     }
 
     /**

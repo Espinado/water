@@ -38,6 +38,40 @@ class ManagerHouseholdCrudTest extends TestCase
         $this->assertDatabaseMissing('buildings', ['id' => $building->id]);
     }
 
+    public function test_manager_can_create_apartment_via_modal(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $building = Building::factory()->create();
+
+        Livewire::actingAs($manager)
+            ->test(HouseholdPanel::class)
+            ->call('openBuilding', $building->id)
+            ->call('startCreateApartment')
+            ->assertSet('creatingApartment', true)
+            ->set('new_apartment_number', '12')
+            ->set('new_apartment_area_m2', '45.84')
+            ->set('resident_first_name', 'Anna')
+            ->set('resident_last_name', 'Bērziņa')
+            ->set('resident_phone', '+37120000001')
+            ->set('resident_email', 'anna.new@example.com')
+            ->call('createApartment')
+            ->assertHasNoErrors()
+            ->assertSet('creatingApartment', false);
+
+        $this->assertDatabaseHas('apartments', [
+            'building_id' => $building->id,
+            'number' => '12',
+            'area_m2' => 45.84,
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'anna.new@example.com',
+            'first_name' => 'Anna',
+            'last_name' => 'Bērziņa',
+            'phone' => '+37120000001',
+        ]);
+    }
+
     public function test_manager_can_update_and_delete_apartment_without_resident(): void
     {
         $manager = User::factory()->manager()->create();
@@ -49,11 +83,13 @@ class ManagerHouseholdCrudTest extends TestCase
             ->set('building_id', $building->id)
             ->call('startEditApartment', $apartment->id)
             ->set('edit_apartment_number', '5A')
+            ->set('edit_apartment_area_m2', '45.84')
             ->call('saveApartment')
             ->assertHasNoErrors();
 
         $apartment->refresh();
         $this->assertSame('5A', $apartment->number);
+        $this->assertSame('45.84', (string) $apartment->area_m2);
 
         Livewire::actingAs($manager)
             ->test(HouseholdPanel::class)
@@ -102,12 +138,15 @@ class ManagerHouseholdCrudTest extends TestCase
             ->test(HouseholdPanel::class)
             ->set('building_id', $building->id)
             ->call('startEditResident', $resident->id)
+            ->set('edit_apartment_area_m2', '45.84')
             ->set('edit_resident_first_name', 'Anete')
             ->call('saveResident')
             ->assertHasNoErrors();
 
         $resident->refresh();
         $this->assertSame('Anete', $resident->first_name);
+        $apartment->refresh();
+        $this->assertSame('45.84', (string) $apartment->area_m2);
 
         Livewire::actingAs($manager)
             ->test(HouseholdPanel::class)

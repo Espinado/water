@@ -8,6 +8,7 @@ use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\MeterReading;
 use App\Services\ManagerContext;
+use App\Services\RecordMeterReading;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,10 +18,11 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('layouts.app')]
+#[Layout('layouts.manager')]
 class MeterReadings extends Component
 {
     use HasManagerContext;
@@ -34,7 +36,8 @@ class MeterReadings extends Component
 
     public string $search = '';
 
-    public string $statusFilter = 'debt';
+    #[Url(as: 'filter', except: 'all', history: true)]
+    public string $statusFilter = 'all';
 
     public string $sortField = 'number';
 
@@ -50,8 +53,8 @@ class MeterReadings extends Component
     {
         $this->loadManagerContext($context);
 
-        if (in_array(request()->query('filter'), ['all', 'debt', 'submitted'], true)) {
-            $this->statusFilter = request()->query('filter');
+        if (! in_array($this->statusFilter, ['all', 'debt', 'submitted'], true)) {
+            $this->statusFilter = 'all';
         }
     }
 
@@ -188,7 +191,7 @@ class MeterReadings extends Component
 
         $user = auth()->user();
 
-        MeterReading::query()->updateOrCreate(
+        app(RecordMeterReading::class)->upsert(
             [
                 'apartment_id' => $apartmentId,
                 'year' => $this->year,
@@ -213,6 +216,15 @@ class MeterReadings extends Component
         }
 
         return number_format((float) $value, 3, '.', '');
+    }
+
+    public function formatCost(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        return number_format((float) $value, 2, '.', '').' €';
     }
 
     public function formatConsumption(mixed $current, mixed $previous): string
@@ -304,6 +316,8 @@ class MeterReadings extends Component
             ->addSelect([
                 'mr_c.cold_m3 as curr_cold_m3',
                 'mr_c.hot_m3 as curr_hot_m3',
+                'mr_c.cold_cost as curr_cold_cost',
+                'mr_c.hot_cost as curr_hot_cost',
                 'mr_p.cold_m3 as prev_cold_m3',
                 'mr_p.hot_m3 as prev_hot_m3',
                 'users.first_name as ru_first_name',

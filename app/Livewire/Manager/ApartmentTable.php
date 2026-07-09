@@ -19,10 +19,11 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('layouts.app')]
+#[Layout('layouts.manager')]
 class ApartmentTable extends Component
 {
     use HasManagerContext;
@@ -40,11 +41,14 @@ class ApartmentTable extends Component
 
     public int $statusMonth = 0;
 
-    public string $statusFilter = 'debt';
+    #[Url(as: 'filter', except: 'all', history: true)]
+    public string $statusFilter = 'all';
 
     public ?int $editingResidentId = null;
 
     public string $edit_apartment_number = '';
+
+    public string $edit_apartment_area_m2 = '';
 
     public string $edit_first_name = '';
 
@@ -58,8 +62,8 @@ class ApartmentTable extends Component
     {
         $this->loadManagerContext($context);
 
-        if (in_array(request()->query('filter'), ['all', 'debt', 'submitted', 'no_login', 'no_resident'], true)) {
-            $this->statusFilter = request()->query('filter');
+        if (! in_array($this->statusFilter, ['all', 'debt', 'submitted', 'no_login', 'no_resident'], true)) {
+            $this->statusFilter = 'all';
         }
     }
 
@@ -181,6 +185,7 @@ class ApartmentTable extends Component
 
         $this->editingResidentId = $user->id;
         $this->edit_apartment_number = (string) ($user->apartment?->number ?? '');
+        $this->edit_apartment_area_m2 = $user->apartment?->area_m2 !== null ? (string) $user->apartment->area_m2 : '';
 
         [$first, $last] = $this->residentNamePartsFromUser($user);
         $this->edit_first_name = $first === '—' ? '' : $first;
@@ -188,11 +193,13 @@ class ApartmentTable extends Component
         $this->edit_phone = (string) ($user->phone ?? '');
         $this->edit_email = (string) $user->email;
         $this->resetValidation();
+        $this->dispatch('open-modal', 'edit-resident');
     }
 
     public function cancelEditResident(): void
     {
         $this->resetEditForm();
+        $this->dispatch('close-modal', 'edit-resident');
     }
 
     public function saveResident(): void
@@ -202,18 +209,43 @@ class ApartmentTable extends Component
         }
 
         $user = $this->findResidentInBuilding($this->editingResidentId);
+        $user->load('apartment');
+        $apartment = $user->apartment;
 
-        $this->validate([
+        $rules = [
             'edit_first_name' => ['required', 'string', 'max:100'],
             'edit_last_name' => ['required', 'string', 'max:100'],
             'edit_phone' => ['nullable', 'string', 'max:32'],
             'edit_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-        ], [], [
+        ];
+
+        if ($apartment) {
+            $rules['edit_apartment_number'] = [
+                'required',
+                'string',
+                'max:16',
+                Rule::unique('apartments', 'number')
+                    ->where(fn ($q) => $q->where('building_id', $this->building_id))
+                    ->ignore($apartment->id),
+            ];
+            $rules['edit_apartment_area_m2'] = ['nullable', 'numeric', 'min:0', 'max:9999.99'];
+        }
+
+        $this->validate($rules, [], [
             'edit_first_name' => __('Имя'),
             'edit_last_name' => __('Фамилия'),
             'edit_phone' => __('Телефон'),
             'edit_email' => __('Почта'),
+            'edit_apartment_number' => __('Номер квартиры'),
+            'edit_apartment_area_m2' => __('Площадь, м²'),
         ]);
+
+        if ($apartment) {
+            $apartment->update([
+                'number' => $this->edit_apartment_number,
+                'area_m2' => $this->edit_apartment_area_m2 !== '' ? $this->edit_apartment_area_m2 : null,
+            ]);
+        }
 
         $user->forceFill([
             'first_name' => $this->edit_first_name,
@@ -223,8 +255,9 @@ class ApartmentTable extends Component
             'email' => $this->edit_email,
         ])->save();
 
-        session()->flash('apt_ok', __('Данные жильца обновлены.'));
+        session()->flash('apt_ok', __('Данные обновлены.'));
         $this->resetEditForm();
+        $this->dispatch('close-modal', 'edit-resident');
     }
 
     protected function findResidentInBuilding(int $userId): User
@@ -262,6 +295,7 @@ class ApartmentTable extends Component
     {
         $this->editingResidentId = null;
         $this->edit_apartment_number = '';
+        $this->edit_apartment_area_m2 = '';
         $this->reset(['edit_first_name', 'edit_last_name', 'edit_phone', 'edit_email']);
         $this->resetValidation();
     }

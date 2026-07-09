@@ -1,35 +1,24 @@
 @props([
-    'wireMethod',
+    'wireMethod' => null,
     'wireParam' => null,
-    'title',
+    'title' => '',
     'text' => null,
     'confirmText' => null,
     'cancelText' => null,
-    'icon' => 'warning',
-    'confirmColor' => '#d97706',
+    'tone' => 'default',
+    'icon' => null,
+    'confirmColor' => null,
 ])
 
-<button
-    type="button"
+<x-k16.confirm-button
+    :wire-method="$wireMethod"
+    :wire-param="$wireParam"
+    :title="$title"
+    :text="$text"
+    :confirm-text="$confirmText"
+    :cancel-text="$cancelText"
+    :tone="$tone === 'default' && $icon === 'warning' ? 'danger' : ($icon === 'question' ? 'success' : $tone)"
     {{ $attributes }}
-    x-data
-    @click="
-        Swal.fire({
-            title: @js($title),
-            text: @js($text),
-            icon: @js($icon),
-            showCancelButton: true,
-            confirmButtonText: @js($confirmText ?? __('Подтвердить')),
-            cancelButtonText: @js($cancelText ?? __('Отмена')),
-            confirmButtonColor: @js($confirmColor),
-            cancelButtonColor: '#94a3b8',
-            reverseButtons: true,
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $wire.call(@js($wireMethod), @js($wireParam));
-            }
-        });
-    "
 >
     {{ $slot }}
-</button>
+</x-k16.confirm-button>

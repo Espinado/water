@@ -211,6 +211,28 @@
                                             <div class="border-t border-indigo-50 pt-2 text-sm leading-snug text-slate-700">
                                                 {{ __('Расход за месяц: ХВС :cold, ГВС :hot', ['cold' => $item['cold_consumption'] ?? '—', 'hot' => $item['hot_consumption'] ?? '—']) }}
                                             </div>
+                                            @if ($item['cold_cost'] !== null || $item['hot_cost'] !== null)
+                                                <div class="flex justify-between gap-4 border-t border-indigo-50 pt-2">
+                                                    <dt class="text-slate-500">{{ __('ХВС, €') }}</dt>
+                                                    <dd class="font-semibold text-slate-900 tabular-nums">
+                                                        @if ($item['cold_cost'] !== null)
+                                                            {{ number_format((float) $item['cold_cost'], 2, '.', '') }} €
+                                                        @else
+                                                            —
+                                                        @endif
+                                                    </dd>
+                                                </div>
+                                                <div class="flex justify-between gap-4">
+                                                    <dt class="text-slate-500">{{ __('ГВС, €') }}</dt>
+                                                    <dd class="font-semibold text-slate-900 tabular-nums">
+                                                        @if ($item['hot_cost'] !== null)
+                                                            {{ number_format((float) $item['hot_cost'], 2, '.', '') }} €
+                                                        @else
+                                                            —
+                                                        @endif
+                                                    </dd>
+                                                </div>
+                                            @endif
                                         </dl>
                                     </div>
                                 @empty
@@ -236,7 +258,9 @@
                                                     {{ __('ГВС, м³') }} @if ($historySortField === 'hot'){{ $historySortAsc ? '↑' : '↓' }}@endif
                                                 </button>
                                             </th>
-                                            <th class="pb-2">{{ __('Расход за месяц, м³') }}</th>
+                                            <th class="pb-2 pr-4">{{ __('Расход за месяц, м³') }}</th>
+                                            <th class="pb-2 pr-4">{{ __('ХВС, €') }}</th>
+                                            <th class="pb-2">{{ __('ГВС, €') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -248,9 +272,23 @@
                                                 <td class="py-2">
                                                     {{ __('ХВС: :cold, ГВС: :hot', ['cold' => $item['cold_consumption'] ?? '—', 'hot' => $item['hot_consumption'] ?? '—']) }}
                                                 </td>
+                                                <td class="py-2 tabular-nums">
+                                                    @if ($item['cold_cost'] !== null)
+                                                        {{ number_format((float) $item['cold_cost'], 2, '.', '') }} €
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
+                                                <td class="py-2 tabular-nums">
+                                                    @if ($item['hot_cost'] !== null)
+                                                        {{ number_format((float) $item['hot_cost'], 2, '.', '') }} €
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="4" class="py-4 text-gray-500">{{ __('Пока нет записей') }}</td></tr>
+                                            <tr><td colspan="6" class="py-4 text-gray-500">{{ __('Пока нет записей') }}</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>

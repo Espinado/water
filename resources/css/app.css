@@ -7,12 +7,21 @@
         @apply bg-gradient-to-b from-sky-50 via-indigo-50 to-fuchsia-50 text-slate-900;
     }
 
+    body.k16-theme {
+        @apply bg-k16-bg text-k16-text text-k16-body;
+        background-image: none;
+    }
+
     h1 {
         @apply text-3xl font-bold tracking-tight sm:text-4xl;
     }
 
     h2 {
         @apply text-xl font-semibold sm:text-2xl;
+    }
+
+    .k16-theme h1 {
+        @apply text-k16-title sm:text-k16-title;
     }
 }
 
@@ -25,13 +34,150 @@
         @apply rounded-2xl border border-white/70 bg-white/90 shadow-sm;
     }
 
-    /* Жилец с телефона: запас под жест «домой» / нижнюю панель */
     .resident-mobile-pad {
         padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
     }
 
-    /* Управляющий с телефона: запас под нижнюю панель */
+    /* Управляющий: запас под нижнюю панель на телефоне */
     .manager-mobile-pad {
         padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .k16-theme .manager-mobile-pad {
+        padding-bottom: max(6rem, calc(env(safe-area-inset-bottom, 0px) + 5rem));
+    }
+
+    @media (min-width: 1024px) {
+        .k16-theme .manager-mobile-pad {
+            padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+        }
+    }
+
+    /* --- K16 Manager design system --- */
+
+    .k16-shell {
+        @apply min-h-screen bg-k16-bg;
+    }
+
+    .k16-sidebar {
+        @apply hidden w-60 shrink-0 border-r border-k16-border bg-k16-bg lg:sticky lg:top-0 lg:flex lg:h-screen lg:max-h-screen lg:flex-col lg:self-start lg:overflow-y-auto;
+    }
+
+    .k16-card {
+        @apply rounded-2xl border border-k16-border bg-k16-surface;
+    }
+
+    .k16-page-title {
+        @apply text-k16-title font-bold text-k16-text;
+    }
+
+    .k16-page-subtitle {
+        @apply text-k16-body text-k16-text-muted;
+    }
+
+    .k16-btn {
+        @apply inline-flex min-h-touch-lg items-center justify-center rounded-xl px-5 text-base font-semibold transition;
+    }
+
+    .k16-btn-primary {
+        @apply k16-btn bg-k16-accent text-white hover:bg-k16-accent-hover;
+    }
+
+    .k16-btn-secondary {
+        @apply k16-btn border border-k16-border bg-k16-surface text-k16-text hover:bg-k16-bg;
+    }
+
+    .k16-btn-danger {
+        @apply k16-btn bg-k16-danger text-white hover:opacity-90;
+    }
+
+    .k16-badge {
+        @apply inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold;
+    }
+
+    .k16-badge-danger {
+        @apply k16-badge bg-k16-danger text-white;
+    }
+
+    .k16-badge-success {
+        @apply k16-badge bg-k16-success text-white;
+    }
+
+    .k16-badge-warning {
+        @apply k16-badge bg-k16-warning-soft text-k16-warning;
+    }
+
+    .k16-nav-link {
+        @apply flex min-h-touch-lg flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-sm font-semibold transition;
+    }
+
+    .k16-nav-link-active {
+        @apply text-k16-accent;
+    }
+
+    .k16-nav-link-idle {
+        @apply text-k16-text-muted hover:text-k16-text;
+    }
+
+    .k16-sidebar-link {
+        @apply flex min-h-touch items-center gap-3 rounded-xl px-4 text-base font-semibold transition;
+    }
+
+    .k16-sidebar-link-active {
+        @apply bg-k16-accent text-white;
+    }
+
+    .k16-sidebar-link-idle {
+        @apply text-k16-text hover:bg-white;
+    }
+
+    .k16-alert-success {
+        @apply rounded-2xl bg-k16-success-soft px-4 py-3 text-base font-medium text-k16-success ring-1 ring-k16-success/20;
+    }
+
+    .k16-alert-danger {
+        @apply rounded-2xl bg-k16-danger-soft px-4 py-3 text-base font-medium text-k16-danger ring-1 ring-k16-danger/20;
+    }
+
+    .k16-alert-warning {
+        @apply rounded-2xl bg-k16-warning-soft px-4 py-3 text-base font-medium text-k16-warning ring-1 ring-k16-warning/20;
+    }
+
+    .k16-building-tab {
+        @apply min-h-touch whitespace-nowrap rounded-xl px-4 text-base font-semibold transition;
+    }
+
+    .k16-building-tab-active {
+        @apply bg-k16-accent text-white;
+    }
+
+    .k16-building-tab-idle {
+        @apply border border-k16-border bg-k16-surface text-k16-text hover:border-k16-accent/40;
+    }
+
+    .k16-filter-chip {
+        @apply min-h-touch rounded-full px-5 text-base font-semibold transition;
+    }
+
+    .k16-stat-card {
+        @apply k16-card block p-5 transition hover:border-k16-accent/30;
+    }
+
+    .k16-theme label {
+        @apply text-base text-k16-text;
+    }
+
+    .k16-theme input:not([type='checkbox']):not([type='radio']),
+    .k16-theme select,
+    .k16-theme textarea {
+        @apply border-k16-border text-k16-body focus:border-k16-accent focus:ring-k16-accent;
+    }
+
+    .k16-modal-panel {
+        @apply rounded-2xl bg-k16-surface p-6;
+    }
+
+    .k16-modal-title {
+        @apply text-k16-lead font-bold text-k16-text;
     }
 }

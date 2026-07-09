@@ -5,7 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>@isset($pwaAppKey){{ config("pwa.apps.{$pwaAppKey}.name") }}@else{{ config('app.name', 'Laravel') }}@endisset</title>
+
+        @isset($pwaAppKey)
+            <x-pwa-meta :app-key="$pwaAppKey" />
+        @endisset
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

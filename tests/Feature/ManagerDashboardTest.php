@@ -7,6 +7,7 @@ use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\MeterReading;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -22,11 +23,13 @@ class ManagerDashboardTest extends TestCase
         $this->actingAs($manager)
             ->get('/manager')
             ->assertOk()
-            ->assertSee(__('Обзор'));
+            ->assertSee(__('Главная'));
     }
 
     public function test_dashboard_shows_debt_count_for_selected_building(): void
     {
+        Carbon::setTestNow(Carbon::create(2026, 4, 29, 12, 0, 0, config('app.timezone')));
+
         $manager = User::factory()->manager()->create();
         $building = Building::factory()->create(['name' => 'K16']);
         $aptSubmitted = Apartment::factory()->for($building)->create(['number' => '1']);
@@ -53,5 +56,7 @@ class ManagerDashboardTest extends TestCase
                 $this->assertSame(1, $stats['submitted']);
                 $this->assertSame(2, $stats['total']);
             });
+
+        Carbon::setTestNow();
     }
 }

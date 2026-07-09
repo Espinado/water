@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\MeterPhotoOcrService;
 use App\Services\MeterReadingSubmissionNotifier;
 use App\Services\MeterSubmissionWindow;
+use App\Services\RecordMeterReading;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
@@ -117,7 +118,7 @@ class Dashboard extends Component
             'hot_m3' => __('горячая вода'),
         ]);
 
-        MeterReading::query()->updateOrCreate(
+        app(RecordMeterReading::class)->upsert(
             [
                 'apartment_id' => $apartment->id,
                 'year' => $period['year'],
@@ -304,6 +305,8 @@ class Dashboard extends Component
                 'row' => $row,
                 'cold_consumption' => $prev ? number_format((float) $row->cold_m3 - (float) $prev->cold_m3, 3, '.', '') : null,
                 'hot_consumption' => $prev ? number_format((float) $row->hot_m3 - (float) $prev->hot_m3, 3, '.', '') : null,
+                'cold_cost' => $row->cold_cost,
+                'hot_cost' => $row->hot_cost,
             ];
         });
     }

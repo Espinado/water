@@ -66,4 +66,23 @@ class ManagerApartmentSubmissionPollTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_apartments_default_filter_is_all(): void
+    {
+        $manager = User::factory()->manager()->create();
+
+        Livewire::actingAs($manager)
+            ->test(ApartmentTable::class)
+            ->assertSet('statusFilter', 'all');
+    }
+
+    public function test_apartments_honors_filter_query_param(): void
+    {
+        $manager = User::factory()->manager()->create();
+
+        Livewire::actingAs($manager)
+            ->withQueryParams(['filter' => 'debt'])
+            ->test(ApartmentTable::class)
+            ->assertSet('statusFilter', 'debt');
+    }
 }

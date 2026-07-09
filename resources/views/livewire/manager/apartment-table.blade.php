@@ -1,22 +1,21 @@
-<div wire:poll.4s="pollSubmissionUpdates" class="manager-mobile-pad py-6 sm:py-10">
+<div wire:poll.4s="pollSubmissionUpdates" class="manager-mobile-pad py-6 sm:py-8">
     <x-manager.submission-toast />
 
-    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-5">
+    <div class="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <a href="{{ route('manager.dashboard') }}" wire:navigate class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">← {{ __('Обзор') }}</a>
-                <h1 class="mt-1 text-2xl font-bold text-indigo-950 sm:text-3xl">{{ __('Жильцы') }}</h1>
+                <h1 class="k16-page-title">{{ __('Жильцы') }}</h1>
             </div>
-            <a href="{{ route('manager.readings', ['filter' => $statusFilter === 'submitted' ? 'submitted' : 'debt']) }}" wire:navigate class="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-200 hover:bg-sky-700">
+            <a href="{{ route('manager.readings', ['filter' => $statusFilter === 'submitted' ? 'submitted' : 'debt']) }}" wire:navigate class="k16-btn-primary">
                 {{ __('Ввести показания') }}
             </a>
         </div>
 
         @if (session('apt_ok'))
-            <div class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 ring-1 ring-emerald-100">{{ session('apt_ok') }}</div>
+            <div class="k16-alert-success">{{ session('apt_ok') }}</div>
         @endif
         @if (session('apt_err'))
-            <div class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-900 ring-1 ring-rose-100">{{ session('apt_err') }}</div>
+            <div class="k16-alert-danger">{{ session('apt_err') }}</div>
         @endif
 
         <x-manager.context-bar
@@ -27,9 +26,9 @@
         />
 
         @if ($this->buildings->isEmpty())
-            <div class="app-card p-6 text-slate-600">{{ __('Нет домов. Создайте в разделе настройки.') }}</div>
+            <div class="k16-card p-6 text-k16-text-muted">{{ __('Нет домов. Создайте в разделе «Дома».') }}</div>
         @elseif (! $building_id)
-            <div class="app-card p-6 text-slate-600">{{ __('Выберите дом.') }}</div>
+            <div class="k16-card p-6 text-k16-text-muted">{{ __('Выберите дом.') }}</div>
         @else
             <div class="space-y-4">
                 <x-manager.status-filter :active="$statusFilter" />
@@ -44,81 +43,95 @@
                 @forelse ($this->rows as $apt)
                     @php
                         $isDebt = ! $apt->period_meter_reading_id;
-                        $cardTone = $isDebt
-                            ? 'border-l-4 border-l-rose-500 bg-gradient-to-r from-rose-50/80 to-white ring-rose-100'
-                            : 'border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-50/60 to-white ring-emerald-100';
                     @endphp
-                    <div class="app-card overflow-hidden p-4 ring-1 {{ $cardTone }} sm:p-5" wire:key="apt-card-{{ $apt->id }}">
+                    <div class="k16-card p-5" wire:key="apt-card-{{ $apt->id }}">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <p class="text-lg font-bold text-indigo-950">{{ __('Кв. :number', ['number' => $apt->number]) }}</p>
-                                <p class="mt-0.5 text-sm text-slate-600">
+                                <p class="text-k16-lead font-bold text-k16-text">{{ __('Кв. :number', ['number' => $apt->number]) }}</p>
+                                <p class="mt-1 text-k16-body text-k16-text-muted">
                                     {{ $this->residentDisplayLast($apt) }} {{ $this->residentDisplayFirst($apt) }}
                                 </p>
                             </div>
                             @if ($isDebt)
-                                <span class="inline-flex items-center rounded-full bg-rose-600 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">{{ __('Долг') }}</span>
+                                <span class="k16-badge-danger">{{ __('Не сдано') }}</span>
                             @else
-                                <span class="inline-flex items-center rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">{{ __('Сданы') }}</span>
+                                <span class="k16-badge-success">{{ __('Сдано') }}</span>
                             @endif
                         </div>
 
-                        <dl class="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                            <div><span class="text-slate-500">{{ __('Телефон') }}:</span> <span class="font-medium">{{ $apt->ru_phone ?: '—' }}</span></div>
-                            <div class="break-all sm:col-span-2"><span class="text-slate-500">{{ __('Почта') }}:</span> <span class="font-medium">{{ $apt->ru_email ?: '—' }}</span></div>
+                        <dl class="mt-4 grid gap-2 text-k16-body sm:grid-cols-2">
+                            <div><span class="text-k16-text-muted">{{ __('Телефон') }}:</span> <span class="font-medium">{{ $apt->ru_phone ?: '—' }}</span></div>
+                            <div class="break-all sm:col-span-2"><span class="text-k16-text-muted">{{ __('Почта') }}:</span> <span class="font-medium">{{ $apt->ru_email ?: '—' }}</span></div>
                             @if ($apt->resident_user_id)
                                 <div>
                                     @if ($apt->ru_last_login_at)
-                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">{{ __('Входил') }}</span>
+                                        <span class="k16-badge-success">{{ __('Входил') }}</span>
                                     @else
-                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">{{ __('Не входил') }}</span>
+                                        <span class="k16-badge-warning">{{ __('Не входил') }}</span>
                                     @endif
                                 </div>
-                                <div class="text-xs text-slate-500">
+                                <div class="text-base text-k16-text-muted">
                                     @if ($apt->ru_invitation_sent_at)
                                         {{ __('Отпр. :date', ['date' => $this->formatInvitationDate($apt->ru_invitation_sent_at)]) }}
                                     @else
-                                        <span class="text-amber-700">{{ __('Ссылка не отправлялась') }}</span>
+                                        <span class="text-k16-warning">{{ __('Ссылка не отправлялась') }}</span>
                                     @endif
                                 </div>
                             @endif
                         </dl>
 
-                        <div class="mt-4 flex flex-wrap gap-2">
+                        <div class="mt-4 flex flex-wrap items-center gap-2">
                             @if ($apt->resident_user_id)
                                 @if ($isDebt)
-                                    <a href="{{ route('manager.readings', ['filter' => 'debt']) }}" wire:navigate class="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700">{{ __('Ввести показания') }}</a>
+                                    <a href="{{ route('manager.readings.apartment', ['apartment' => $apt->id]) }}" wire:navigate class="k16-btn-primary">
+                                        {{ __('Ввести показания') }}
+                                    </a>
+                                @else
+                                    <a href="{{ route('manager.readings.apartment', ['apartment' => $apt->id]) }}" wire:navigate class="k16-btn-primary">
+                                        {{ __('История показаний') }}
+                                    </a>
                                 @endif
-                                <button type="button" wire:click="startEditResident({{ (int) $apt->resident_user_id }})" class="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">{{ __('Редактировать') }}</button>
-                                <button type="button" wire:click="sendInvitation({{ (int) $apt->resident_user_id }})" wire:loading.attr="disabled" class="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200 hover:bg-indigo-100">{{ __('Ссылка на пароль') }}</button>
-                                        @if ($apt->ru_access_suspended_at)
+
+                                <x-k16.action-menu>
+                                    <x-k16.menu-item action="startEditResident" :action-param="(int) $apt->resident_user_id">
+                                        {{ __('Редактировать') }}
+                                    </x-k16.menu-item>
+                                    <x-k16.menu-item action="sendInvitation" :action-param="(int) $apt->resident_user_id">
+                                        {{ __('Ссылка на пароль') }}
+                                    </x-k16.menu-item>
+                                    @if ($apt->ru_access_suspended_at)
+                                        <li class="list-none">
                                             <x-manager.confirm-button
                                                 wire-method="toggleAccess"
                                                 :wire-param="(int) $apt->resident_user_id"
                                                 :title="__('Открыть доступ жильцу?')"
                                                 :confirm-text="__('Открыть доступ')"
-                                                icon="question"
-                                                confirm-color="#059669"
-                                                class="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200"
+                                                tone="success"
+                                                class="block w-full px-4 py-3 text-start text-base font-semibold text-k16-success hover:bg-k16-success-soft"
                                             >{{ __('Открыть доступ') }}</x-manager.confirm-button>
-                                        @else
+                                        </li>
+                                    @else
+                                        <li class="list-none">
                                             <x-manager.confirm-button
                                                 wire-method="toggleAccess"
                                                 :wire-param="(int) $apt->resident_user_id"
                                                 :title="__('Закрыть доступ жильцу?')"
                                                 :confirm-text="__('Закрыть доступ')"
-                                                icon="warning"
-                                                confirm-color="#d97706"
-                                                class="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-rose-200"
+                                                tone="danger"
+                                                class="block w-full px-4 py-3 text-start text-base font-semibold text-k16-danger hover:bg-k16-danger-soft"
                                             >{{ __('Закрыть доступ') }}</x-manager.confirm-button>
-                                        @endif
+                                        </li>
+                                    @endif
+                                </x-k16.action-menu>
                             @else
-                                <a href="{{ route('manager.setup') }}" wire:navigate class="text-xs font-semibold text-violet-700 hover:text-violet-900">{{ __('Создайте жильца в настройках') }} →</a>
+                                <a href="{{ route('manager.setup') }}" wire:navigate class="k16-btn-primary">
+                                    {{ __('Добавить жильца') }}
+                                </a>
                             @endif
                         </div>
                     </div>
                 @empty
-                    <div class="app-card p-8 text-center text-slate-500">{{ __('Нет квартир или ничего не найдено.') }}</div>
+                    <div class="k16-card p-8 text-center text-k16-text-muted">{{ __('Нет квартир или ничего не найдено.') }}</div>
                 @endforelse
             </div>
 
@@ -128,13 +141,23 @@
         @endif
     </div>
 
-    <x-modal name="edit-resident" :show="$editingResidentId !== null" focusable>
-        <form wire:submit="saveResident" class="p-6 space-y-4">
+    <x-modal name="edit-resident" variant="k16" :show="$editingResidentId !== null" focusable>
+        <form wire:submit="saveResident" class="k16-modal-panel space-y-4">
             <div>
-                <h2 class="text-lg font-semibold text-gray-900">{{ __('Редактирование жильца') }}</h2>
-                @if ($edit_apartment_number !== '')
-                    <p class="mt-1 text-sm text-gray-600">{{ __('Кв. :number', ['number' => $edit_apartment_number]) }}</p>
-                @endif
+                <h2 class="k16-modal-title">{{ __('Редактирование') }}</h2>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="edit_apartment_number" :value="__('Номер квартиры')" />
+                    <x-text-input wire:model="edit_apartment_number" id="edit_apartment_number" class="mt-1 block w-full" required />
+                    <x-input-error :messages="$errors->get('edit_apartment_number')" class="mt-1" />
+                </div>
+                <div>
+                    <x-input-label for="edit_apartment_area_m2" :value="__('Площадь, м²')" />
+                    <x-text-input wire:model="edit_apartment_area_m2" id="edit_apartment_area_m2" type="text" inputmode="decimal" class="mt-1 block w-full text-right font-semibold" placeholder="45.84" />
+                    <x-input-error :messages="$errors->get('edit_apartment_area_m2')" class="mt-1" />
+                </div>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
@@ -162,9 +185,9 @@
                 <x-input-error :messages="$errors->get('edit_email')" class="mt-1" />
             </div>
 
-            <div class="flex justify-end gap-3 pt-2">
-                <x-secondary-button type="button" wire:click="cancelEditResident">{{ __('Отмена') }}</x-secondary-button>
-                <x-primary-button type="submit">{{ __('Сохранить') }}</x-primary-button>
+            <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
+                <button type="button" wire:click="cancelEditResident" class="k16-btn-secondary w-full sm:w-auto">{{ __('Отмена') }}</button>
+                <button type="submit" class="k16-btn-primary w-full sm:w-auto">{{ __('Сохранить') }}</button>
             </div>
         </form>
     </x-modal>
