@@ -53,8 +53,9 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
 
         <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Email Password Reset Link') }}
+            <x-primary-button wire:loading.attr="disabled" wire:target="sendPasswordResetLink">
+                <span wire:loading.remove wire:target="sendPasswordResetLink">{{ __('Email Password Reset Link') }}</span>
+                <span wire:loading wire:target="sendPasswordResetLink">Lūdzu uzgaidiet</span>
             </x-primary-button>
         </div>
     </form>

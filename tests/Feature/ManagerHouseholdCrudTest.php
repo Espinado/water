@@ -182,8 +182,8 @@ class ManagerHouseholdCrudTest extends TestCase
             ->call('openBuilding', $building->id)
             ->assertSet('inBuilding', true)
             ->set('search', 'ieva.unique@example.com')
-            ->assertSee('101')
-            ->assertDontSee('202');
+            ->assertSee('Кв. 101')
+            ->assertDontSee('Кв. 202');
 
         Livewire::actingAs($manager)
             ->test(HouseholdPanel::class)

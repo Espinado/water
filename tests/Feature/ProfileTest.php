@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Apartment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -13,9 +14,11 @@ class ProfileTest extends TestCase
 
     public function test_profile_page_is_displayed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'apartment_id' => Apartment::factory()->create()->id,
+        ]);
 
-        $response = $this->actingAs($user)->get('/profile');
+        $response = $this->actingAs($user)->get($this->residentUrl('/profile'));
 
         $response
             ->assertOk()

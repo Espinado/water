@@ -6,6 +6,7 @@
 @php
     $spinnerColor = match ($color) {
         'emerald' => 'text-emerald-600',
+        'red' => 'text-red-600',
         'sky', 'k16' => 'text-k16-accent',
         default => 'text-indigo-600',
     };

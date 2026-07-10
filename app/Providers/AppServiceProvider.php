@@ -7,13 +7,17 @@ use App\Contracts\VisionDocumentTextDetector;
 use App\Models\Apartment;
 use App\Models\MeterReading;
 use App\Models\User;
+use App\Services\AppHost;
 use App\Services\GeminiMeterReadingRecognizer;
 use App\Services\GoogleCloudVisionDocumentTextDetector;
 use App\Services\MeterSubmissionWindow;
 use App\Services\PwaContext;
+use App\Session\AppSessionManager;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,8 +28,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->extend('session', function ($manager, $app) {
+            return new AppSessionManager($app);
+        });
+
         $this->app->singleton(VisionDocumentTextDetector::class, GoogleCloudVisionDocumentTextDetector::class);
         $this->app->singleton(MeterReadingRecognizer::class, GeminiMeterReadingRecognizer::class);
+        $this->app->singleton(AppHost::class);
     }
 
     /**
@@ -33,29 +42,54 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // MySQL/MariaDB (utf8mb4): индекс по varchar(255) > 1000 байт — см. SQLSTATE 1071.
         Schema::defaultStringLength(191);
 
-        ResetPassword::toMailUsing(function (object $notifiable, string $token): MailMessage {
-            $app = $notifiable instanceof User
-                ? app(PwaContext::class)->appKeyForUser($notifiable)
-                : 'resident';
+        if (! $this->app->runningInConsole() && $this->app->bound('request')) {
+            $request = $this->app->make('request');
 
-            $url = url(route('password.reset', [
+            if ($request instanceof \Illuminate\Http\Request) {
+                app(AppHost::class)->configureForRequest($request);
+            }
+        }
+
+        ResetPassword::toMailUsing(function (object $notifiable, string $token): MailMessage {
+            $pwa = app(PwaContext::class);
+            $appHost = app(AppHost::class);
+
+            $app = $notifiable instanceof User
+                ? $pwa->appKeyForUser($notifiable)
+                : AppHost::RESIDENT;
+
+            $resetRoute = $app === AppHost::MANAGER ? 'manager.password.reset' : 'password.reset';
+            $path = route($resetRoute, [
                 'token' => $token,
                 'email' => $notifiable->getEmailForPasswordReset(),
                 'app' => $app,
-            ], false));
+            ], false);
+
+            $url = $appHost->absoluteUrl($app, $path);
 
             $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
             return (new MailMessage)
                 ->subject(__('Установка пароля'))
                 ->line(__('Вы получили это письмо, потому что для вашей учётной записи запрошена установка или смена пароля.'))
-                ->line(__('Так бывает, когда управляющий дома добавил вас в систему, либо когда вы сами запросили восстановление доступа.'))
                 ->action(__('Установить пароль'), $url)
                 ->line(__('Ссылка действительна в течение :minutes минут.', ['minutes' => $minutes]))
                 ->line(__('Если вы не отправляли этот запрос, просто проигнорируйте письмо — пароль не изменится.'));
+        });
+
+        Event::listen(PasswordReset::class, function (PasswordReset $event): void {
+            $user = $event->user;
+
+            if (! $user instanceof User || $user->email_verified_at !== null) {
+                return;
+            }
+
+            User::query()
+                ->whereKey($user->getKey())
+                ->whereNull('email_verified_at')
+                ->update(['email_verified_at' => now()]);
         });
 
         Gate::define('record-meter-reading', function (User $user, Apartment $apartment, int $year, int $month) {

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Apartment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -13,7 +14,7 @@ class AuthenticationTest extends TestCase
 
     public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get('/login');
+        $response = $this->get($this->residentUrl('/login'));
 
         $response
             ->assertOk()
@@ -22,9 +23,10 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['apartment_id' => Apartment::factory()->create()->id]);
 
         $component = Volt::test('pages.auth.login')
+            ->set('pwaApp', 'resident')
             ->set('form.email', $user->email)
             ->set('form.password', 'password');
 
@@ -56,11 +58,11 @@ class AuthenticationTest extends TestCase
 
     public function test_navigation_menu_can_be_rendered(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['apartment_id' => Apartment::factory()->create()->id]);
 
         $this->actingAs($user);
 
-        $response = $this->get('/dashboard');
+        $response = $this->get($this->residentUrl('/dashboard'));
 
         $response
             ->assertOk()
@@ -79,14 +81,14 @@ class AuthenticationTest extends TestCase
 
         $component
             ->assertHasNoErrors()
-            ->assertRedirect('/login');
+            ->assertRedirect(route('login.resident', absolute: false));
 
         $this->assertGuest();
     }
 
     public function test_user_can_log_in_after_logout_without_csrf_error(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['apartment_id' => Apartment::factory()->create()->id]);
 
         $this->actingAs($user);
 
@@ -95,6 +97,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
 
         Volt::test('pages.auth.login')
+            ->set('pwaApp', 'resident')
             ->set('form.email', $user->email)
             ->set('form.password', 'password')
             ->call('login')

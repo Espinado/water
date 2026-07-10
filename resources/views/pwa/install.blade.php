@@ -7,15 +7,14 @@
 
         <title>{{ $appConfig['name'] }}</title>
 
+        @php($pwaContext = app(\App\Services\PwaContext::class))
+
         <x-pwa-meta :app-key="$appKey" />
 
+        <x-pwa-init :app-key="$appKey" />
+
         <script>
-            window.__PWA_DEFERRED_PROMPT__ = window.__PWA_DEFERRED_PROMPT__ ?? null;
-            window.addEventListener('beforeinstallprompt', (event) => {
-                event.preventDefault();
-                window.__PWA_DEFERRED_PROMPT__ = event;
-                window.dispatchEvent(new CustomEvent('pwa:install-ready'));
-            });
+            window.__PWA_OPEN_URL__ = @json($pwaContext->openUrl($appKey));
         </script>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -58,6 +57,12 @@
                 <div id="pwa-install-section" class="mt-8 w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-100">
                     <p class="text-sm font-semibold text-slate-900">{{ __('Установка на телефон') }}</p>
 
+                    @if ($appKey === 'manager')
+                        <p class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-950">
+                            {{ __('Это отдельное приложение «K16 — управляющий». Если у вас уже установлен «K16 — жилец», всё равно установите это — ярлык будет красным и откроет панель управляющего.') }}
+                        </p>
+                    @endif
+
                     <p id="pwa-http-warning" @class(['mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950', 'hidden' => request()->secure()])>
                         {{ __('Для автоустановки откройте сайт по HTTPS (https://water.test). Или установите через меню браузера справа в адресной строке.') }}
                     </p>
@@ -73,7 +78,7 @@
                         </li>
                     </ol>
 
-                    <p id="pwa-install-hint" class="mt-4 hidden rounded-xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900">
+                    <p id="pwa-install-hint" class="mt-4 hidden rounded-xl px-3 py-2 text-sm font-medium" style="background-color: {{ $appConfig['background_color'] }}; color: {{ $appConfig['theme_color'] }}">
                         {{ __('Можно установить прямо сейчас — кнопка ниже.') }}
                     </p>
 
@@ -102,7 +107,7 @@
 
                 @if ($authenticated ?? false)
                     <a
-                        href="{{ route('pwa.continue', $appKey) }}"
+                        href="{{ $pwaContext->continueUrl($appKey) }}"
                         class="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white shadow-md"
                         style="background-color: {{ $appConfig['theme_color'] }}"
                     >
@@ -110,7 +115,7 @@
                     </a>
                 @else
                     <a
-                        href="{{ route('pwa.open', $appKey) }}"
+                        href="{{ $pwaContext->openUrl($appKey) }}"
                         class="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white shadow-md"
                         style="background-color: {{ $appConfig['theme_color'] }}"
                     >
@@ -121,33 +126,15 @@
                 @if ($appKey === 'resident')
                     <p class="mt-4 text-xs text-slate-500">
                         {{ __('Вы управляющий?') }}
-                        <a href="{{ route('pwa.install', 'manager') }}" class="font-semibold text-emerald-700 hover:text-emerald-900">{{ __('Приложение для управляющего') }}</a>
+                        <a href="{{ $pwaContext->installUrl('manager') }}" class="font-semibold text-red-700 hover:text-red-900">{{ __('Приложение для управляющего') }}</a>
                     </p>
                 @else
                     <p class="mt-4 text-xs text-slate-500">
                         {{ __('Вы жилец?') }}
-                        <a href="{{ route('pwa.install', 'resident') }}" class="font-semibold text-sky-700 hover:text-sky-900">{{ __('Приложение для жильца') }}</a>
+                        <a href="{{ $pwaContext->installUrl('resident') }}" class="font-semibold text-emerald-700 hover:text-emerald-900">{{ __('Приложение для жильца') }}</a>
                     </p>
                 @endif
             </div>
         </div>
-
-        <script>
-            window.__PWA_APP__ = @json($appKey);
-            window.__PWA_OPEN_URL__ = @json(url(route('pwa.open', $appKey, false)));
-            window.__PWA_SECURE__ = @json(request()->secure());
-            window.__PWA_LABELS__ = {
-                preparing: @json(__('Подготовка…')),
-                confirm: @json(__('Подтвердите установку в окне браузера')),
-                installing: @json(__('Установка…')),
-                done: @json(__('Приложение установлено')),
-                cancelled: @json(__('Установка отменена')),
-                openApp: @json(__('Открыть приложение')),
-                retry: @json(__('Попробовать снова')),
-                unavailable: @json(__('Автоустановка недоступна. Используйте меню браузера (иконка установки в адресной строке).')),
-                needsHttps: @json(__('Для установки нужен HTTPS. Откройте :url', ['url' => 'https://'.request()->getHost().'/app/'.$appKey])),
-                alreadyInstalled: @json(__('Приложение установлено')),
-            };
-        </script>
     </body>
 </html>

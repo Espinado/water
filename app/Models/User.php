@@ -24,6 +24,7 @@ use Illuminate\Notifications\Notifiable;
     'apartment_id',
     'access_suspended_at',
     'invitation_sent_at',
+    'email_verified_at',
     'last_login_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
@@ -58,6 +59,26 @@ class User extends Authenticatable
     public function isResident(): bool
     {
         return $this->role === UserRole::Resident;
+    }
+
+    public function canUseManagerApp(): bool
+    {
+        return $this->isManager();
+    }
+
+    public function canUseResidentApp(): bool
+    {
+        return $this->occupiesApartment() && ($this->isResident() || $this->isManager());
+    }
+
+    public function occupiesApartment(): bool
+    {
+        return $this->apartment_id !== null;
+    }
+
+    public function isManagerResident(): bool
+    {
+        return $this->isManager() && $this->occupiesApartment();
     }
 
     public function isAccessSuspended(): bool

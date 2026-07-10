@@ -2,9 +2,11 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\NormalizesDecimalInput;
 use App\Models\Apartment;
 use App\Models\MeterReading;
 use App\Models\User;
+use App\Support\MobileClient;
 use App\Services\MeterPhotoOcrService;
 use App\Services\MeterReadingSubmissionNotifier;
 use App\Services\MeterSubmissionWindow;
@@ -24,8 +26,12 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class Dashboard extends Component
 {
+    use NormalizesDecimalInput;
     use WithFileUploads;
     use WithPagination;
+
+    /** @var list<string> */
+    protected array $decimalInputProperties = ['cold_m3', 'hot_m3'];
 
     public string $cold_m3 = '';
 
@@ -46,7 +52,7 @@ class Dashboard extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+        if (! $user instanceof User || ! $user->canUseResidentApp()) {
             return;
         }
 
@@ -71,7 +77,7 @@ class Dashboard extends Component
     public function saveReading(): void
     {
         $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+        if (! $user instanceof User || ! $user->canUseResidentApp()) {
             session()->flash('reading_error', __('Сохранение показаний доступно только жильцу с назначенной квартирой. Для проверки OCR войдите под учётной записью жильца, не под управляющим.'));
 
             return;
@@ -179,7 +185,7 @@ class Dashboard extends Component
     public function residentApartment(): ?Apartment
     {
         $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+        if (! $user instanceof User || ! $user->canUseResidentApp()) {
             return null;
         }
 
@@ -221,11 +227,19 @@ class Dashboard extends Component
     }
 
     #[Computed]
+    public function residentMeterInputActive(): bool
+    {
+        return $this->residentPeriod !== null
+            && $this->residentCanEditMeter
+            && ! $this->residentSubmittedForCurrentPeriod;
+    }
+
+    #[Computed]
     public function residentCurrentReading(): ?MeterReading
     {
         $user = auth()->user();
         $period = $this->residentPeriod;
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id || $period === null) {
+        if (! $user instanceof User || ! $user->canUseResidentApp() || $period === null) {
             return null;
         }
 
@@ -250,7 +264,7 @@ class Dashboard extends Component
     public function readingHistory(): Collection
     {
         $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+        if (! $user instanceof User || ! $user->canUseResidentApp()) {
             return collect();
         }
 
@@ -266,7 +280,7 @@ class Dashboard extends Component
     public function readingHistoryRows(): LengthAwarePaginator
     {
         $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+        if (! $user instanceof User || ! $user->canUseResidentApp()) {
             return MeterReading::query()->whereRaw('0 = 1')->paginate(12, ['*'], 'historyPage');
         }
 
@@ -345,8 +359,15 @@ class Dashboard extends Component
 
     protected function recognizeSingleMeterFromPhoto(string $type): void
     {
+        if (! MobileClient::isMobileRequest()) {
+            $photoProperty = $type === 'cold' ? 'coldMeterPhoto' : 'hotMeterPhoto';
+            $this->reset($photoProperty);
+
+            return;
+        }
+
         $user = auth()->user();
-        if (! $user instanceof User || ! $user->isResident() || ! $user->apartment_id) {
+        if (! $user instanceof User || ! $user->canUseResidentApp()) {
             session()->flash('reading_error', __('Распознавание с фото доступно только жильцу с назначенной квартирой. Войдите под учётной записью жильца для теста OCR.'));
 
             return;

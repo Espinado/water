@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Manager;
 
+use App\Livewire\Concerns\NormalizesDecimalInput;
 use App\Models\Apartment;
 use App\Models\MeterReading;
 use App\Services\MeterSubmissionWindow;
@@ -20,7 +21,11 @@ use Livewire\WithPagination;
 #[Layout('layouts.manager')]
 class ApartmentReadingsHistory extends Component
 {
+    use NormalizesDecimalInput;
     use WithPagination;
+
+    /** @var list<string> */
+    protected array $decimalInputProperties = ['entry_cold', 'entry_hot', 'edit_cold', 'edit_hot'];
 
     public Apartment $apartment;
 

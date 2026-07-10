@@ -3,7 +3,9 @@
 namespace App\Livewire\Manager;
 
 use App\Enums\UserRole;
+use App\Models\Apartment;
 use App\Models\User;
+use App\Services\LinkUserToApartment;
 use App\Services\SendUserInvitation;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
@@ -33,6 +35,8 @@ class ManagerTeam extends Component
     public string $edit_email = '';
 
     public string $edit_phone = '';
+
+    public ?int $edit_apartment_id = null;
 
     public function createManager(SendUserInvitation $invitations): void
     {
@@ -77,6 +81,7 @@ class ManagerTeam extends Component
         $this->edit_last_name = (string) ($manager->last_name ?? '');
         $this->edit_email = (string) $manager->email;
         $this->edit_phone = (string) ($manager->phone ?? '');
+        $this->edit_apartment_id = $manager->apartment_id;
         $this->resetValidation();
         $this->dispatch('open-modal', 'edit-manager');
     }
@@ -84,7 +89,7 @@ class ManagerTeam extends Component
     public function cancelEdit(): void
     {
         $this->editingId = null;
-        $this->reset(['edit_first_name', 'edit_last_name', 'edit_email', 'edit_phone']);
+        $this->reset(['edit_first_name', 'edit_last_name', 'edit_email', 'edit_phone', 'edit_apartment_id']);
         $this->resetValidation();
         $this->dispatch('close-modal', 'edit-manager');
     }
@@ -102,11 +107,13 @@ class ManagerTeam extends Component
             'edit_last_name' => ['required', 'string', 'max:100'],
             'edit_email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($manager->id)],
             'edit_phone' => ['nullable', 'string', 'max:32'],
+            'edit_apartment_id' => ['nullable', 'integer', 'exists:apartments,id'],
         ], [], [
             'edit_first_name' => __('Имя'),
             'edit_last_name' => __('Фамилия'),
             'edit_email' => __('Email'),
             'edit_phone' => __('Телефон'),
+            'edit_apartment_id' => __('Квартира'),
         ]);
 
         $manager->update([
@@ -116,6 +123,23 @@ class ManagerTeam extends Component
             'email' => $this->edit_email,
             'phone' => $this->edit_phone !== '' ? $this->edit_phone : null,
         ]);
+
+        $linker = app(LinkUserToApartment::class);
+
+        try {
+            if ($this->edit_apartment_id === null) {
+                if ($manager->occupiesApartment()) {
+                    $linker->unlink($manager);
+                }
+            } else {
+                $apartment = Apartment::query()->findOrFail($this->edit_apartment_id);
+                $linker->link($manager, $apartment);
+            }
+        } catch (\InvalidArgumentException $exception) {
+            $this->addError('edit_apartment_id', $exception->getMessage());
+
+            return;
+        }
 
         unset($this->managers);
         session()->flash('mgr_ok', __('Данные управляющего обновлены.'));
@@ -177,9 +201,31 @@ class ManagerTeam extends Component
     {
         return User::query()
             ->where('role', UserRole::Manager)
+            ->with(['apartment.building'])
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
+    }
+
+    #[Computed]
+    public function apartments(): Collection
+    {
+        return Apartment::query()
+            ->with('building')
+            ->join('buildings', 'buildings.id', '=', 'apartments.building_id')
+            ->orderBy('buildings.name')
+            ->orderBy('apartments.number')
+            ->select('apartments.*')
+            ->get();
+    }
+
+    public function apartmentLabel(User $manager): string
+    {
+        if (! $manager->occupiesApartment() || $manager->apartment === null) {
+            return '—';
+        }
+
+        return $manager->apartment->label();
     }
 
     public function displayName(User $manager): string

@@ -14,27 +14,27 @@ class ManagerAccessTest extends TestCase
     {
         $manager = User::factory()->manager()->create();
 
-        $response = $this->actingAs($manager)->get('/manager');
-
-        $response->assertOk();
+        $this->actingAs($manager)
+            ->get($this->managerUrl('/dashboard'))
+            ->assertOk();
     }
 
     public function test_manager_can_open_setup_panel(): void
     {
         $manager = User::factory()->manager()->create();
 
-        $response = $this->actingAs($manager)->get('/manager/setup');
-
-        $response->assertOk();
+        $this->actingAs($manager)
+            ->get($this->managerUrl('/setup'))
+            ->assertOk();
     }
 
-    public function test_manager_can_open_apartments_table(): void
+    public function test_manager_apartments_route_redirects_to_setup(): void
     {
         $manager = User::factory()->manager()->create();
 
-        $response = $this->actingAs($manager)->get('/manager/apartments');
-
-        $response->assertOk();
+        $this->actingAs($manager)
+            ->get($this->managerUrl('/apartments?filter=debt'))
+            ->assertRedirect($this->managerUrl('/setup?filter=debt'));
     }
 
     public function test_resident_cannot_open_manager_panel(): void
@@ -43,19 +43,41 @@ class ManagerAccessTest extends TestCase
             'apartment_id' => null,
         ]);
 
-        $response = $this->actingAs($resident)->get('/manager');
+        $this->actingAs($resident)
+            ->get($this->managerUrl('/dashboard'))
+            ->assertRedirect($this->managerUrl('/login'));
 
-        $response->assertForbidden();
+        $this->assertGuest();
     }
 
-    public function test_resident_cannot_open_apartments_table(): void
+    public function test_resident_cannot_open_apartments_route(): void
     {
         $resident = User::factory()->create([
             'apartment_id' => null,
         ]);
 
-        $response = $this->actingAs($resident)->get('/manager/apartments');
+        $this->actingAs($resident)
+            ->get($this->managerUrl('/apartments'))
+            ->assertRedirect($this->managerUrl('/login'));
 
-        $response->assertForbidden();
+        $this->assertGuest();
+    }
+
+    public function test_legacy_manager_path_redirects_to_manager_subdomain(): void
+    {
+        $this->get($this->residentUrl('/manager/setup'))
+            ->assertRedirect($this->managerUrl('/setup'));
+    }
+
+    public function test_manager_can_open_profile_page(): void
+    {
+        $manager = User::factory()->manager()->create();
+
+        $this->actingAs($manager)
+            ->get($this->managerUrl('/profile'))
+            ->assertOk()
+            ->assertSee(__('Профиль'))
+            ->assertSeeVolt('profile.update-profile-information-form')
+            ->assertSeeVolt('profile.update-password-form');
     }
 }

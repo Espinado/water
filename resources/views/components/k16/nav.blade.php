@@ -11,20 +11,8 @@
             'icon' => 'home',
         ],
         [
-            'route' => 'manager.apartments',
-            'active' => request()->routeIs('manager.apartments'),
-            'label' => __('Жильцы'),
-            'icon' => 'users',
-        ],
-        [
-            'route' => 'manager.readings',
-            'active' => request()->routeIs('manager.readings*'),
-            'label' => __('Показания'),
-            'icon' => 'meter',
-        ],
-        [
             'route' => 'manager.setup',
-            'active' => request()->routeIs('manager.setup'),
+            'active' => request()->routeIs('manager.setup', 'manager.apartments'),
             'label' => __('Дома'),
             'icon' => 'building',
         ],

@@ -4,7 +4,7 @@
 
 @layer base {
     body {
-        @apply bg-gradient-to-b from-sky-50 via-indigo-50 to-fuchsia-50 text-slate-900;
+        @apply bg-gradient-to-b from-emerald-50 via-green-50 to-teal-50 text-slate-900;
     }
 
     body.k16-theme {
@@ -183,5 +183,22 @@
 
     .k16-modal-title {
         @apply text-k16-lead font-bold text-k16-text;
+    }
+}
+
+@layer utilities {
+    html:has(#pwa-install-bar:not([hidden])) .app-shell,
+    html:has(#pwa-install-bar:not([hidden])) .min-h-screen.flex.flex-col.justify-center {
+        padding-bottom: var(--pwa-install-bar-height, 4.5rem);
+    }
+
+    html:has(#pwa-install-bar[data-pwa-above-nav="1"]:not([hidden])) .k16-shell {
+        padding-bottom: calc(var(--pwa-install-bar-height, 4.5rem) + 4.25rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    @media (min-width: 1024px) {
+        html:has(#pwa-install-bar[data-pwa-above-nav="1"]:not([hidden])) .k16-shell {
+            padding-bottom: var(--pwa-install-bar-height, 4.5rem);
+        }
     }
 }

@@ -12,7 +12,7 @@ new class extends Component
     {
         $logout();
 
-        $this->redirect(route('login', absolute: false), navigate: false);
+        $this->redirect(route('login.resident', absolute: false), navigate: false);
     }
 }; ?>
 
@@ -34,11 +34,8 @@ new class extends Component
                         {{ __('Кабинет') }}
                     </x-nav-link>
                     @if (auth()->user()->isManager())
-                        <x-nav-link :href="route('manager.setup')" :active="request()->routeIs('manager.setup')" wire:navigate>
-                            {{ __('Управление домами') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings*')" wire:navigate>
-                            {{ __('Управление показаниями') }}
+                        <x-nav-link :href="app(\App\Services\AppHost::class)->absoluteUrl(\App\Services\AppHost::MANAGER, '/dashboard')" :active="false">
+                            {{ __('Панель управляющего') }}
                         </x-nav-link>
                     @endif
                 </div>
@@ -49,7 +46,11 @@ new class extends Component
                 <x-language-switcher />
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-indigo-100 text-sm font-medium rounded-xl text-indigo-700 bg-indigo-50/70 hover:text-indigo-800 focus:outline-none transition ease-in-out duration-150">
+                        <button
+                            type="button"
+                            @click.stop="dropdownOpen = ! dropdownOpen"
+                            class="inline-flex items-center px-3 py-2 border border-emerald-100 text-sm font-medium rounded-xl text-emerald-700 bg-emerald-50/70 hover:text-emerald-800 focus:outline-none transition ease-in-out duration-150"
+                        >
                             <div x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
 
                             <div class="ms-1">
@@ -61,23 +62,20 @@ new class extends Component
                     </x-slot>
 
                     <x-slot name="content">
-                        <x-dropdown-link :href="route('profile')" wire:navigate>
+                        <x-dropdown-link :href="route('profile')" wire:navigate x-on:click="dropdownOpen = false">
                             {{ __('Профиль') }}
                         </x-dropdown-link>
 
-                        <!-- Authentication -->
-                        <button wire:click="logout" class="w-full text-start">
-                            <x-dropdown-link>
-                                {{ __('Выйти') }}
-                            </x-dropdown-link>
-                        </button>
+                        <x-dropdown-button wire:click.stop="logout" x-on:click="dropdownOpen = false">
+                            {{ __('Выйти') }}
+                        </x-dropdown-button>
                     </x-slot>
                 </x-dropdown>
             </div>
 
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden py-2">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-xl text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:bg-indigo-50 transition duration-150 ease-in-out">
+                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-xl text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 focus:outline-none focus:bg-emerald-50 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -94,11 +92,8 @@ new class extends Component
                 {{ __('Кабинет') }}
             </x-responsive-nav-link>
             @if (auth()->user()->isManager())
-                <x-responsive-nav-link :href="route('manager.setup')" :active="request()->routeIs('manager.setup')" wire:navigate>
-                    {{ __('Управление домами') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('manager.readings')" :active="request()->routeIs('manager.readings*')" wire:navigate>
-                    {{ __('Управление показаниями') }}
+                <x-responsive-nav-link :href="app(\App\Services\AppHost::class)->absoluteUrl(\App\Services\AppHost::MANAGER, '/dashboard')" :active="false">
+                    {{ __('Панель управляющего') }}
                 </x-responsive-nav-link>
             @endif
         </div>
@@ -115,15 +110,17 @@ new class extends Component
             </div>
 
             <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile')" wire:navigate>
+                <x-responsive-nav-link :href="route('profile')" wire:navigate x-on:click="open = false">
                     {{ __('Профиль') }}
                 </x-responsive-nav-link>
 
-                <!-- Authentication -->
-                <button wire:click="logout" class="w-full text-start">
-                    <x-responsive-nav-link>
-                        {{ __('Выйти') }}
-                    </x-responsive-nav-link>
+                <button
+                    type="button"
+                    wire:click.stop="logout"
+                    x-on:click="open = false"
+                    class="block w-full ps-3 pe-4 py-2 border-l-4 border-transparent text-start text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out"
+                >
+                    {{ __('Выйти') }}
                 </button>
             </div>
         </div>

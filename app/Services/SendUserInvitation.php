@@ -39,7 +39,6 @@ class SendUserInvitation
             'email' => $attributes['email'],
             'password' => bcrypt(Str::password(64)),
             'role' => $attributes['role'],
-            'email_verified_at' => now(),
         ]);
     }
 }

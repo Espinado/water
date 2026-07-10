@@ -2,11 +2,13 @@
 
 namespace App\Livewire\Manager;
 
+use App\Livewire\Concerns\NormalizesDecimalInput;
 use App\Models\ProviderServiceRate;
 use App\Models\Service;
 use App\Models\ServiceProvider;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -14,13 +16,14 @@ use Livewire\Component;
 #[Layout('layouts.manager')]
 class ServiceProviders extends Component
 {
-    public string $new_code = '';
+    use NormalizesDecimalInput;
+
+    /** @var list<string> */
+    protected array $decimalInputProperties = ['new_rate_price'];
 
     public string $new_name = '';
 
     public ?int $editingId = null;
-
-    public string $edit_code = '';
 
     public string $edit_name = '';
 
@@ -31,19 +34,17 @@ class ServiceProviders extends Component
     public function createProvider(): void
     {
         $this->validate([
-            'new_code' => ['required', 'string', 'max:64', 'alpha_dash', 'unique:service_providers,code'],
             'new_name' => ['required', 'string', 'max:255'],
         ], [], [
-            'new_code' => __('Код'),
             'new_name' => __('Название'),
         ]);
 
         ServiceProvider::query()->create([
-            'code' => strtoupper($this->new_code),
+            'code' => $this->generateProviderCode($this->new_name),
             'name' => $this->new_name,
         ]);
 
-        $this->reset(['new_code', 'new_name']);
+        $this->reset(['new_name']);
         $this->resetValidation();
         unset($this->providers);
 
@@ -54,7 +55,6 @@ class ServiceProviders extends Component
     {
         $provider = ServiceProvider::query()->findOrFail($providerId);
         $this->editingId = $provider->id;
-        $this->edit_code = $provider->code;
         $this->edit_name = $provider->name;
         $this->reset(['new_rate_service', 'new_rate_price']);
         $this->resetValidation();
@@ -65,7 +65,7 @@ class ServiceProviders extends Component
     public function cancelEdit(): void
     {
         $this->editingId = null;
-        $this->reset(['edit_code', 'edit_name', 'new_rate_service', 'new_rate_price']);
+        $this->reset(['edit_name', 'new_rate_service', 'new_rate_price']);
         $this->resetValidation();
         $this->dispatch('close-modal', 'edit-provider');
     }
@@ -79,10 +79,8 @@ class ServiceProviders extends Component
         $provider = ServiceProvider::query()->findOrFail($this->editingId);
 
         $this->validate([
-            'edit_code' => ['required', 'string', 'max:64', 'alpha_dash', 'unique:service_providers,code,'.$provider->id],
             'edit_name' => ['required', 'string', 'max:255'],
         ], [], [
-            'edit_code' => __('Код'),
             'edit_name' => __('Название'),
         ]);
 
@@ -91,7 +89,6 @@ class ServiceProviders extends Component
         }
 
         $provider->update([
-            'code' => strtoupper($this->edit_code),
             'name' => $this->edit_name,
         ]);
 
@@ -232,6 +229,27 @@ class ServiceProviders extends Component
         };
 
         return number_format((float) $value, 2, '.', '').' €'.$suffix;
+    }
+
+    protected function generateProviderCode(string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::upper(Str::slug($name, '_'));
+        if ($base === '') {
+            $base = 'SUPPLIER';
+        }
+
+        $code = $base;
+        $suffix = 1;
+
+        while (ServiceProvider::query()
+            ->when($ignoreId !== null, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->where('code', $code)
+            ->exists()) {
+            $code = $base.'_'.$suffix;
+            $suffix++;
+        }
+
+        return $code;
     }
 
     public function render(): View

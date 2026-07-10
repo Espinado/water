@@ -23,14 +23,13 @@ class ServiceProviderAndCostTest extends TestCase
 
         Livewire::actingAs($manager)
             ->test(ServiceProviders::class)
-            ->set('new_code', 'JUR_UDENS')
             ->set('new_name', 'Jūrmalas ūdens')
             ->call('createProvider')
             ->assertHasNoErrors();
 
-        $provider = ServiceProvider::query()->where('code', 'JUR_UDENS')->first();
+        $provider = ServiceProvider::query()->where('name', 'Jūrmalas ūdens')->first();
         $this->assertNotNull($provider);
-        $this->assertSame('Jūrmalas ūdens', $provider->name);
+        $this->assertSame('JURMALAS_UDENS', $provider->code);
 
         Livewire::actingAs($manager)
             ->test(ServiceProviders::class)

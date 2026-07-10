@@ -1,6 +1,8 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use App\Services\AppHost;
+use App\Services\PwaContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
@@ -11,10 +13,11 @@ new #[Layout('layouts.guest')] class extends Component
     /**
      * Send an email verification notification to the user.
      */
-    public function sendVerification(): void
+    public function sendVerification(PwaContext $pwa, AppHost $appHost): void
     {
         if (Auth::user()->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+            $homeRoute = $pwa->homeRoute($appHost->forRequest());
+            $this->redirectIntended(default: route($homeRoute, absolute: false), navigate: true);
 
             return;
         }
@@ -27,11 +30,12 @@ new #[Layout('layouts.guest')] class extends Component
     /**
      * Log the current user out of the application.
      */
-    public function logout(Logout $logout): void
+    public function logout(Logout $logout, AppHost $appHost): void
     {
         $logout();
 
-        $this->redirect('/', navigate: true);
+        $loginRoute = $appHost->isManager() ? 'login.manager' : 'login.resident';
+        $this->redirect(route($loginRoute, absolute: false), navigate: true);
     }
 }; ?>
 

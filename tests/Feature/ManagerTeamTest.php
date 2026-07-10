@@ -20,7 +20,7 @@ class ManagerTeamTest extends TestCase
         $manager = User::factory()->manager()->create();
 
         $this->actingAs($manager)
-            ->get('/manager/team')
+            ->get($this->managerUrl('/team'))
             ->assertOk();
     }
 

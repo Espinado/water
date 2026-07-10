@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Dashboard;
-use App\Livewire\Manager\ApartmentTable;
+use App\Livewire\Manager\HouseholdPanel;
 use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\User;
@@ -35,8 +35,8 @@ class ManagerApartmentSubmissionPollTest extends TestCase
             ->assertHasNoErrors();
 
         Livewire::actingAs($manager)
-            ->test(ApartmentTable::class)
-            ->set('building_id', $building->id)
+            ->test(HouseholdPanel::class)
+            ->call('openBuilding', $building->id)
             ->set('statusYear', 2026)
             ->set('statusMonth', 4)
             ->call('pollSubmissionUpdates')
@@ -67,22 +67,22 @@ class ManagerApartmentSubmissionPollTest extends TestCase
         Carbon::setTestNow();
     }
 
-    public function test_apartments_default_filter_is_all(): void
+    public function test_setup_default_filter_is_all(): void
     {
         $manager = User::factory()->manager()->create();
 
         Livewire::actingAs($manager)
-            ->test(ApartmentTable::class)
+            ->test(HouseholdPanel::class)
             ->assertSet('statusFilter', 'all');
     }
 
-    public function test_apartments_honors_filter_query_param(): void
+    public function test_setup_honors_filter_query_param(): void
     {
         $manager = User::factory()->manager()->create();
 
         Livewire::actingAs($manager)
             ->withQueryParams(['filter' => 'debt'])
-            ->test(ApartmentTable::class)
+            ->test(HouseholdPanel::class)
             ->assertSet('statusFilter', 'debt');
     }
 }

@@ -15,10 +15,13 @@ class DevManagerSeeder extends Seeder
             ['email' => 'manager@water.test'],
             [
                 'name' => 'Управляющий',
+                'first_name' => 'Управляющий',
+                'last_name' => 'Тест',
                 'email_verified_at' => now(),
-                'password' => Hash::make('test12345'),
+                'password' => Hash::make('password'),
                 'role' => UserRole::Manager,
                 'apartment_id' => null,
+                'access_suspended_at' => null,
             ],
         );
     }

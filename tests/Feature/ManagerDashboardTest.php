@@ -21,7 +21,7 @@ class ManagerDashboardTest extends TestCase
         $manager = User::factory()->manager()->create();
 
         $this->actingAs($manager)
-            ->get('/manager')
+            ->get($this->managerUrl('/dashboard'))
             ->assertOk()
             ->assertSee(__('Главная'));
     }

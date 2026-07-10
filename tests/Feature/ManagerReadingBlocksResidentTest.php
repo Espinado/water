@@ -86,4 +86,41 @@ class ManagerReadingBlocksResidentTest extends TestCase
             ->test(Dashboard::class)
             ->assertSet('residentSubmittedForCurrentPeriod', false);
     }
+
+    public function test_meter_input_warning_visible_only_during_active_submission_window(): void
+    {
+        config()->set('water.submission_window_bypass', false);
+        config()->set('water.meter_reading_gate_bypass', false);
+
+        Carbon::setTestNow(Carbon::create(2026, 4, 29, 12, 0, 0, config('app.timezone')));
+
+        $building = Building::factory()->create();
+        $apartment = Apartment::factory()->for($building)->create(['number' => '9']);
+        $resident = User::factory()->create(['apartment_id' => $apartment->id]);
+
+        $instruction = 'откроется камера';
+
+        Livewire::actingAs($resident)
+            ->test(Dashboard::class)
+            ->assertSet('residentMeterInputActive', true)
+            ->assertSee(__('Важно'))
+            ->assertSee($instruction);
+
+        Livewire::actingAs($resident)
+            ->test(Dashboard::class)
+            ->set('cold_m3', '100')
+            ->set('hot_m3', '50')
+            ->call('saveReading')
+            ->assertHasNoErrors()
+            ->assertSet('residentMeterInputActive', false)
+            ->assertDontSee($instruction)
+            ->assertSee(__('Показания за этот период приняты. Форма ввода закрыта.'));
+
+        Carbon::setTestNow(Carbon::create(2026, 4, 20, 12, 0, 0, config('app.timezone')));
+
+        Livewire::actingAs($resident)
+            ->test(Dashboard::class)
+            ->assertSet('residentMeterInputActive', false)
+            ->assertDontSee($instruction);
+    }
 }

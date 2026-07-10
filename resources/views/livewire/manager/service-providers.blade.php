@@ -17,7 +17,6 @@
                 <div wire:key="provider-{{ $provider->id }}" class="k16-card p-5">
                     <div class="flex flex-wrap items-baseline justify-between gap-2">
                         <p class="text-k16-lead font-bold text-k16-text">{{ $provider->name }}</p>
-                        <span class="text-k16-body font-mono text-k16-text-muted">{{ $provider->code }}</span>
                     </div>
 
                     @if ($provider->rates->isNotEmpty())
@@ -56,17 +55,10 @@
 
         <form wire:submit="createProvider" class="k16-card border-dashed p-5 space-y-4">
             <p class="text-k16-lead font-bold text-k16-text">{{ __('Новый поставщик') }}</p>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <x-input-label for="new-code" :value="__('Код')" />
-                    <x-text-input wire:model="new_code" id="new-code" class="mt-1 block w-full font-mono uppercase" placeholder="JURMALAS_UDENS" />
-                    <x-input-error :messages="$errors->get('new_code')" class="mt-1" />
-                </div>
-                <div>
-                    <x-input-label for="new-name" :value="__('Название')" />
-                    <x-text-input wire:model="new_name" id="new-name" class="mt-1 block w-full" />
-                    <x-input-error :messages="$errors->get('new_name')" class="mt-1" />
-                </div>
+            <div>
+                <x-input-label for="new-name" :value="__('Название')" />
+                <x-text-input wire:model="new_name" id="new-name" class="mt-1 block w-full" />
+                <x-input-error :messages="$errors->get('new_name')" class="mt-1" />
             </div>
             <p class="text-k16-body text-k16-text-muted">{{ __('После создания откройте «Изменить» и добавьте тарифы по услугам из каталога.') }}</p>
             <button type="submit" class="k16-btn-primary">{{ __('Добавить поставщика') }}</button>
@@ -76,17 +68,10 @@
     <x-modal name="edit-provider" variant="k16" :show="$editingId !== null" focusable>
         <form wire:submit="saveProvider" class="k16-modal-panel space-y-4">
             <h2 class="k16-modal-title">{{ __('Редактирование поставщика') }}</h2>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <x-input-label for="edit-code" :value="__('Код')" />
-                    <x-text-input wire:model="edit_code" id="edit-code" class="mt-1 block w-full font-mono uppercase" required />
-                    <x-input-error :messages="$errors->get('edit_code')" class="mt-1" />
-                </div>
-                <div>
-                    <x-input-label for="edit-name" :value="__('Название')" />
-                    <x-text-input wire:model="edit_name" id="edit-name" class="mt-1 block w-full" required />
-                    <x-input-error :messages="$errors->get('edit_name')" class="mt-1" />
-                </div>
+            <div>
+                <x-input-label for="edit-name" :value="__('Название')" />
+                <x-text-input wire:model="edit_name" id="edit-name" class="mt-1 block w-full" required />
+                <x-input-error :messages="$errors->get('edit_name')" class="mt-1" />
             </div>
 
             <div class="rounded-lg border border-k16-border p-4 space-y-3">

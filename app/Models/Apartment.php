@@ -43,10 +43,28 @@ class Apartment extends Model
 
     public function label(): string
     {
-        $name = $this->relationLoaded('building')
-            ? $this->building->name
+        $buildingName = $this->relationLoaded('building')
+            ? ($this->building?->name ?? '')
             : ($this->building()->value('name') ?? '');
 
-        return $name.' — кв. '.$this->number;
+        $prefix = $buildingName !== '' ? $buildingName.' — ' : '';
+
+        return $prefix.__('кв. :number', ['number' => $this->number]);
+    }
+
+    public function occupant(): ?User
+    {
+        return $this->users()->first();
+    }
+
+    public function isOccupiedByOther(?int $exceptUserId = null): bool
+    {
+        $query = $this->users();
+
+        if ($exceptUserId !== null) {
+            $query->whereKeyNot($exceptUserId);
+        }
+
+        return $query->exists();
     }
 }

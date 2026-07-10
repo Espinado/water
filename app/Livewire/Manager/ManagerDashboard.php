@@ -81,6 +81,8 @@ class ManagerDashboard extends Component
                 ]),
             );
         }
+
+        $this->skipRender();
     }
 
     #[Computed]

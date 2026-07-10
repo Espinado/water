@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AppHost;
 use App\Services\PwaContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -16,10 +17,15 @@ class PwaInstallController extends Controller
 
         return view('pwa.install', [
             'appKey' => $app,
-            'appConfig' => config("pwa.apps.{$app}"),
+            'appConfig' => $pwa->appConfig($app),
             'welcome' => request()->boolean('welcome'),
             'authenticated' => auth()->check(),
         ]);
+    }
+
+    public function showManager(PwaContext $pwa): View
+    {
+        return $this->show(AppHost::MANAGER, $pwa);
     }
 
     public function open(string $app, PwaContext $pwa): RedirectResponse
@@ -30,10 +36,10 @@ class PwaInstallController extends Controller
 
         if (auth()->check()) {
             $user = auth()->user();
-            if ($app === 'manager' && $user->isManager()) {
+            if ($app === 'manager' && $user->canUseManagerApp()) {
                 return redirect()->route('manager.dashboard');
             }
-            if ($app === 'resident' && $user->isResident()) {
+            if ($app === 'resident' && $user->canUseResidentApp()) {
                 return redirect()->route('dashboard');
             }
 
@@ -44,6 +50,11 @@ class PwaInstallController extends Controller
         return redirect()->route($pwa->loginRoute($app));
     }
 
+    public function openManager(PwaContext $pwa): RedirectResponse
+    {
+        return $this->open(AppHost::MANAGER, $pwa);
+    }
+
     public function continue(string $app, PwaContext $pwa): RedirectResponse
     {
         abort_unless($pwa->isValidApp($app), 404);
@@ -52,14 +63,19 @@ class PwaInstallController extends Controller
         $pwa->rememberApp($app);
         $user = auth()->user();
 
-        if ($app === 'manager' && $user->isManager()) {
+        if ($app === 'manager' && $user->canUseManagerApp()) {
             return redirect()->route('manager.dashboard');
         }
 
-        if ($app === 'resident' && $user->isResident()) {
+        if ($app === 'resident' && $user->canUseResidentApp()) {
             return redirect()->route('dashboard');
         }
 
         abort(403);
+    }
+
+    public function continueManager(PwaContext $pwa): RedirectResponse
+    {
+        return $this->continue(AppHost::MANAGER, $pwa);
     }
 }

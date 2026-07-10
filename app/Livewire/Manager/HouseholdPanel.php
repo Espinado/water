@@ -4,20 +4,24 @@ namespace App\Livewire\Manager;
 
 use App\Enums\UserRole;
 use App\Livewire\Concerns\HasManagerContext;
+use App\Livewire\Concerns\NormalizesDecimalInput;
 use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\User;
+use App\Services\LinkUserToApartment;
 use App\Services\ManagerContext;
+use App\Services\MeterReadingSubmissionNotifier;
 use App\Services\SendUserInvitation;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -25,7 +29,11 @@ use Livewire\WithPagination;
 class HouseholdPanel extends Component
 {
     use HasManagerContext;
+    use NormalizesDecimalInput;
     use WithPagination;
+
+    /** @var list<string> */
+    protected array $decimalInputProperties = ['new_apartment_area_m2', 'edit_apartment_area_m2'];
 
     public ?int $building_id = null;
 
@@ -79,24 +87,125 @@ class HouseholdPanel extends Component
 
     public string $edit_resident_email = '';
 
+    public int $statusYear = 0;
+
+    public int $statusMonth = 0;
+
+    #[Url(as: 'filter', except: 'all', history: true)]
+    public string $statusFilter = 'all';
+
     public function mount(ManagerContext $context): void
     {
         $this->loadManagerContext($context);
+
+        if (! in_array($this->statusFilter, ['all', 'debt', 'submitted', 'no_login', 'no_resident'], true)) {
+            $this->statusFilter = 'all';
+        }
+
+        if ($this->building_id) {
+            $this->inBuilding = true;
+        }
     }
 
     protected function syncPeriodFromContext(ManagerContext $context): void
     {
-        // Период на этой странице не используется.
+        $this->statusYear = $context->year();
+        $this->statusMonth = $context->month();
     }
 
     protected function managerPeriodYear(): int
     {
-        return (int) now()->year;
+        return $this->statusYear;
     }
 
     protected function managerPeriodMonth(): int
     {
-        return (int) now()->month;
+        return $this->statusMonth;
+    }
+
+    public function updatedStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStatusYear(ManagerContext $context): void
+    {
+        $this->persistManagerContext($context);
+        $this->resetPage();
+    }
+
+    public function updatedStatusMonth(ManagerContext $context): void
+    {
+        $this->persistManagerContext($context);
+        $this->resetPage();
+    }
+
+    public function pollSubmissionUpdates(MeterReadingSubmissionNotifier $notifier): void
+    {
+        if (! $this->building_id || ! $this->inBuilding) {
+            return;
+        }
+
+        $events = $notifier->pullForBuildingPeriod(
+            (int) $this->building_id,
+            $this->statusYear,
+            $this->statusMonth,
+        );
+
+        foreach ($events as $event) {
+            $this->dispatch(
+                'manager-submission-toast',
+                message: __('Квартира № :number сдала показания', [
+                    'number' => $event['apartment_number'],
+                ]),
+            );
+        }
+
+        $this->skipRender();
+    }
+
+    public function formatInvitationDate(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return Carbon::parse($value)->format('d.m.Y');
+    }
+
+    public function occupantDisplayFirst(Model $apt): string
+    {
+        [$first] = $this->occupantNameParts($apt);
+
+        return $first;
+    }
+
+    public function occupantDisplayLast(Model $apt): string
+    {
+        [, $last] = $this->occupantNameParts($apt);
+
+        return $last;
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    protected function occupantNameParts(Model $apt): array
+    {
+        $fn = $apt->getAttribute('ru_first_name');
+        $ln = $apt->getAttribute('ru_last_name');
+        $name = $apt->getAttribute('ru_name');
+
+        if (($fn === null || $fn === '') && ($ln === null || $ln === '') && $name) {
+            $p = preg_split('/\s+/u', trim((string) $name), 2, PREG_SPLIT_NO_EMPTY);
+            $fn = $p[0] ?? '';
+            $ln = $p[1] ?? '';
+        }
+
+        $first = ($fn !== null && $fn !== '') ? (string) $fn : '—';
+        $last = ($ln !== null && $ln !== '') ? (string) $ln : '—';
+
+        return [$first, $last];
     }
 
     public function updatedBuildingId(ManagerContext $context): void
@@ -266,7 +375,7 @@ class HouseholdPanel extends Component
             'resident_first_name' => ['required', 'string', 'max:100'],
             'resident_last_name' => ['required', 'string', 'max:100'],
             'resident_phone' => ['nullable', 'string', 'max:32'],
-            'resident_email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'resident_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->where('role', UserRole::Resident->value)],
         ], [], [
             'new_apartment_area_m2' => __('Площадь, м²'),
             'resident_first_name' => __('Имя'),
@@ -281,7 +390,7 @@ class HouseholdPanel extends Component
             'area_m2' => $this->new_apartment_area_m2 !== '' ? $this->new_apartment_area_m2 : null,
         ]);
 
-        $user = $this->createResidentUser($apartment);
+        $user = $this->createOccupantForApartment($apartment);
         $this->sendResidentInvitation($user);
 
         $this->cancelCreateApartment();
@@ -346,6 +455,12 @@ class HouseholdPanel extends Component
             return;
         }
 
+        if ($apartment->users()->where('role', UserRole::Manager)->whereNotNull('apartment_id')->exists()) {
+            session()->flash('mgr_err', __('Нельзя удалить квартиру с привязанным управляющим. Сначала отвяжите его от квартиры.'));
+
+            return;
+        }
+
         $apartment->delete();
         session()->flash('mgr_ok', __('Квартира удалена.'));
     }
@@ -375,7 +490,7 @@ class HouseholdPanel extends Component
 
         $apartment = $this->findApartmentInBuilding($this->creatingResidentForApartmentId);
 
-        if ($apartment->users()->where('role', UserRole::Resident)->exists()) {
+        if ($apartment->isOccupiedByOther()) {
             session()->flash('mgr_err', __('В этой квартире уже есть жилец.'));
 
             return;
@@ -385,7 +500,7 @@ class HouseholdPanel extends Component
             'resident_first_name' => ['required', 'string', 'max:100'],
             'resident_last_name' => ['required', 'string', 'max:100'],
             'resident_phone' => ['nullable', 'string', 'max:32'],
-            'resident_email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'resident_email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->where('role', UserRole::Resident->value)],
         ], [], [
             'resident_first_name' => __('Имя'),
             'resident_last_name' => __('Фамилия'),
@@ -393,28 +508,52 @@ class HouseholdPanel extends Component
             'resident_email' => __('Почта'),
         ]);
 
-        $user = $this->createResidentUser($apartment);
-        $this->sendResidentInvitation($user);
+        $user = $this->createOccupantForApartment($apartment);
 
-        session()->flash('mgr_ok', __('Жилец добавлен. На :email отправлена ссылка для пароля.', ['email' => $user->email]));
+        if (! $user->wasRecentlyCreated) {
+            session()->flash('mgr_ok', __('Управляющий :email привязан к квартире. Тот же email и пароль — для входа в приложение жильца.', ['email' => $user->email]));
+        } else {
+            $this->sendResidentInvitation($user);
+            session()->flash('mgr_ok', __('Жилец добавлен. На :email отправлена ссылка для пароля.', ['email' => $user->email]));
+        }
+
         $this->cancelCreateResident();
     }
 
-    protected function createResidentUser(Apartment $apartment): User
+    protected function createOccupantForApartment(Apartment $apartment): User
     {
-        $fullName = trim($this->resident_last_name.' '.$this->resident_first_name);
+        $linker = app(LinkUserToApartment::class);
+        $existing = $linker->findByEmail($this->resident_email);
 
-        return User::query()->create([
-            'name' => $fullName,
+        if ($existing !== null) {
+            if ($existing->isResident()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'resident_email' => __('Этот email уже используется жильцом.'),
+                ]);
+            }
+
+            if ($existing->isManager()) {
+                $linker->link($existing, $apartment, [
+                    'first_name' => $this->resident_first_name,
+                    'last_name' => $this->resident_last_name,
+                    'phone' => $this->resident_phone !== '' ? $this->resident_phone : null,
+                ]);
+
+                return $existing;
+            }
+        }
+
+        return $linker->createResident($apartment, [
             'first_name' => $this->resident_first_name,
             'last_name' => $this->resident_last_name,
             'phone' => $this->resident_phone !== '' ? $this->resident_phone : null,
             'email' => $this->resident_email,
-            'password' => Hash::make(Str::password(64)),
-            'role' => UserRole::Resident,
-            'apartment_id' => $apartment->id,
-            'email_verified_at' => now(),
         ]);
+    }
+
+    protected function createResidentUser(Apartment $apartment): User
+    {
+        return $this->createOccupantForApartment($apartment);
     }
 
     protected function sendResidentInvitation(User $user, ?SendUserInvitation $invitations = null): void
@@ -429,7 +568,7 @@ class HouseholdPanel extends Component
 
     public function startEditResident(int $userId): void
     {
-        $user = $this->findResidentInBuilding($userId);
+        $user = $this->findOccupantInBuilding($userId);
         $user->load('apartment');
 
         $this->editingResidentId = $user->id;
@@ -466,7 +605,7 @@ class HouseholdPanel extends Component
             return;
         }
 
-        $user = $this->findResidentInBuilding($this->editingResidentId);
+        $user = $this->findOccupantInBuilding($this->editingResidentId);
         $user->load('apartment');
         $apartment = $user->apartment;
 
@@ -519,14 +658,22 @@ class HouseholdPanel extends Component
 
     public function deleteResident(int $userId): void
     {
-        $user = $this->findResidentInBuilding($userId);
+        $user = $this->findOccupantInBuilding($userId);
+
+        if ($user->isManager()) {
+            app(LinkUserToApartment::class)->unlink($user);
+            session()->flash('mgr_ok', __('Управляющий отвязан от квартиры. Доступ к приложению жильца закрыт.'));
+
+            return;
+        }
+
         $user->delete();
         session()->flash('mgr_ok', __('Жилец удалён.'));
     }
 
     public function sendInvitation(int $userId, SendUserInvitation $invitations): void
     {
-        $user = $this->findResidentInBuilding($userId);
+        $user = $this->findOccupantInBuilding($userId);
         $result = $invitations->send($user);
 
         if ($result['sent']) {
@@ -538,7 +685,7 @@ class HouseholdPanel extends Component
 
     public function toggleAccess(int $userId): void
     {
-        $user = $this->findResidentInBuilding($userId);
+        $user = $this->findOccupantInBuilding($userId);
         $user->access_suspended_at = $user->access_suspended_at ? null : now();
         $user->save();
         session()->flash('mgr_ok', $user->access_suspended_at ? __('Доступ закрыт.') : __('Доступ открыт.'));
@@ -556,11 +703,26 @@ class HouseholdPanel extends Component
             ->firstOrFail();
     }
 
-    protected function findResidentInBuilding(int $userId): User
+    protected function findOccupantInBuilding(int $userId): User
     {
-        $user = User::query()->where('role', UserRole::Resident)->findOrFail($userId);
+        $user = User::query()->findOrFail($userId);
 
         if ((int) $user->apartment?->building_id !== (int) $this->building_id) {
+            abort(403);
+        }
+
+        if (! $user->occupiesApartment()) {
+            abort(404);
+        }
+
+        return $user;
+    }
+
+    protected function findResidentInBuilding(int $userId): User
+    {
+        $user = $this->findOccupantInBuilding($userId);
+
+        if (! $user->isResident()) {
             abort(403);
         }
 
@@ -602,17 +764,33 @@ class HouseholdPanel extends Component
         }
 
         $sub = DB::table('users')
-            ->select('apartment_id', DB::raw('MIN(id) as resident_id'))
-            ->where('role', UserRole::Resident->value)
+            ->select('apartment_id', DB::raw('MIN(id) as occupant_id'))
             ->whereNotNull('apartment_id')
             ->groupBy('apartment_id');
 
         $query = Apartment::query()
             ->where('apartments.building_id', $this->building_id)
+            ->leftJoin('meter_readings as mr_p', function ($j) {
+                $j->on('mr_p.apartment_id', '=', 'apartments.id')
+                    ->where('mr_p.year', '=', $this->statusYear)
+                    ->where('mr_p.month', '=', $this->statusMonth);
+            })
             ->leftJoinSub($sub, 'pr', 'pr.apartment_id', '=', 'apartments.id')
-            ->leftJoin('users', 'users.id', '=', 'pr.resident_id')
+            ->leftJoin('users', 'users.id', '=', 'pr.occupant_id')
             ->select('apartments.*')
-            ->with(['users' => fn ($q) => $q->where('role', UserRole::Resident)]);
+            ->addSelect([
+                'mr_p.id as period_meter_reading_id',
+                'users.id as occupant_user_id',
+                'users.first_name as ru_first_name',
+                'users.last_name as ru_last_name',
+                'users.name as ru_name',
+                'users.email as ru_email',
+                'users.phone as ru_phone',
+                'users.role as ru_role',
+                'users.invitation_sent_at as ru_invitation_sent_at',
+                'users.access_suspended_at as ru_access_suspended_at',
+                'users.last_login_at as ru_last_login_at',
+            ]);
 
         if ($this->search !== '') {
             $s = '%'.addcslashes($this->search, '%_\\').'%';
@@ -626,13 +804,25 @@ class HouseholdPanel extends Component
             });
         }
 
+        match ($this->statusFilter) {
+            'debt' => $query->whereNull('mr_p.id'),
+            'submitted' => $query->whereNotNull('mr_p.id'),
+            'no_login' => $query->whereNotNull('users.id')->whereNull('users.last_login_at'),
+            'no_resident' => $query->whereNull('users.id'),
+            default => null,
+        };
+
         $dir = $this->sortAsc ? 'asc' : 'desc';
 
+        if ($this->sortField === 'number' && $this->statusFilter !== 'submitted') {
+            $query->orderByRaw('CASE WHEN mr_p.id IS NULL THEN 0 ELSE 1 END ASC');
+        }
+
         match ($this->sortField) {
-            'first_name' => $query->orderBy('users.first_name', $dir)->orderBy('users.last_name', $dir)->orderBy('apartments.number'),
-            'last_name' => $query->orderBy('users.last_name', $dir)->orderBy('users.first_name', $dir)->orderBy('apartments.number'),
-            'email' => $query->orderBy('users.email', $dir)->orderBy('apartments.number'),
-            'phone' => $query->orderBy('users.phone', $dir)->orderBy('apartments.number'),
+            'first_name' => $query->orderBy('users.first_name', $dir)->orderBy('users.last_name', $dir),
+            'last_name' => $query->orderBy('users.last_name', $dir)->orderBy('users.first_name', $dir),
+            'email' => $query->orderBy('users.email', $dir),
+            'phone' => $query->orderBy('users.phone', $dir),
             default => $query->orderBy('apartments.number', $dir),
         };
 

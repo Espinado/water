@@ -7,9 +7,10 @@
 
         @php($pwaAppKey = 'manager')
 
-        <title>{{ config('pwa.apps.manager.name', 'K16 Pro') }}</title>
+        <title>{{ app(\App\Services\PwaContext::class)->appConfig('manager')['name'] }}</title>
 
         <x-pwa-meta app-key="manager" />
+        <x-pwa-init app-key="manager" />
         <x-confirm-save-meta />
 
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -21,7 +22,7 @@
         <div class="k16-shell min-h-screen bg-k16-bg">
             <aside class="k16-sidebar hidden w-60 shrink-0 border-r border-k16-border bg-k16-bg lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:flex-col lg:overflow-y-auto">
                 <div class="border-b border-k16-border px-5 py-5">
-                    <p class="text-lg font-bold text-k16-text">{{ config('pwa.apps.manager.name', 'K16 Pro') }}</p>
+                    <p class="text-lg font-bold text-k16-text">{{ app(\App\Services\PwaContext::class)->appConfig('manager')['name'] }}</p>
                     <p class="mt-1 text-sm text-k16-text-muted">{{ __('Управление домами') }}</p>
                 </div>
                 <x-k16.nav variant="sidebar" class="flex-1" />
@@ -49,7 +50,9 @@
         <x-wait-overlay
             id="app-page-loading"
             color="k16"
-            class="flex"
+            class="hidden"
         />
+
+        <x-pwa-install-bar app-key="manager" :above-nav="true" />
     </body>
 </html>

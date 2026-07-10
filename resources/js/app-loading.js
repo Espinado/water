@@ -1,11 +1,13 @@
 const overlayId = 'app-page-loading';
 const MIN_VISIBLE_MS = 600;
-const SETTLE_MS = 800;
+const SETTLE_MS = 400;
 const MAX_WAIT_MS = 15000;
 
 let shownAt = 0;
 let hideToken = 0;
-let pendingLivewireMessages = 0;
+let pendingActions = 0;
+let pendingUploads = 0;
+let navigationPending = false;
 let livewireHooksReady = false;
 
 const overlay = () => document.getElementById(overlayId);
@@ -31,6 +33,22 @@ const hidePageLoading = () => {
     el.classList.remove('flex');
 };
 
+const hasPendingWork = () => navigationPending || pendingActions > 0 || pendingUploads > 0;
+
+const tryShow = () => {
+    if (hasPendingWork()) {
+        showPageLoading();
+    }
+};
+
+const tryScheduleHide = () => {
+    if (hasPendingWork()) {
+        return;
+    }
+
+    scheduleHide();
+};
+
 const nextPaint = () => new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(resolve));
 });
@@ -50,6 +68,16 @@ const waitMinVisible = async () => {
     }
 };
 
+const isBackgroundPollCommit = (commit) => {
+    const calls = commit.calls ?? [];
+
+    if (calls.length === 0) {
+        return false;
+    }
+
+    return calls.every((call) => call.method === 'pollSubmissionUpdates');
+};
+
 const registerLivewireHooks = () => {
     if (livewireHooksReady || ! window.Livewire?.hook) {
         return;
@@ -57,24 +85,31 @@ const registerLivewireHooks = () => {
 
     livewireHooksReady = true;
 
-    window.Livewire.hook('message.sent', () => {
-        pendingLivewireMessages += 1;
-    });
+    window.Livewire.hook('commit', ({ commit, succeed, fail }) => {
+        if (! commit.calls?.length || isBackgroundPollCommit(commit)) {
+            return;
+        }
 
-    window.Livewire.hook('message.processed', () => {
-        pendingLivewireMessages = Math.max(0, pendingLivewireMessages - 1);
+        pendingActions += 1;
+        tryShow();
+
+        const done = () => {
+            pendingActions = Math.max(0, pendingActions - 1);
+            tryScheduleHide();
+        };
+
+        succeed(done);
+        fail(done);
     });
 };
 
 const waitForLivewireIdle = () => new Promise((resolve) => {
-    registerLivewireHooks();
-
     const started = Date.now();
 
     const tick = () => {
         const elapsed = Date.now() - started;
 
-        if (pendingLivewireMessages === 0 && elapsed >= SETTLE_MS) {
+        if (! hasPendingWork() && elapsed >= SETTLE_MS) {
             resolve();
 
             return;
@@ -86,7 +121,7 @@ const waitForLivewireIdle = () => new Promise((resolve) => {
             return;
         }
 
-        setTimeout(tick, 100);
+        setTimeout(tick, 50);
     };
 
     tick();
@@ -152,11 +187,34 @@ const bootInitialLoad = async () => {
 };
 
 document.addEventListener('livewire:navigate', () => {
+    navigationPending = true;
     hideToken += 1;
     showPageLoading();
 });
 
-document.addEventListener('livewire:navigated', scheduleHide);
+document.addEventListener('livewire:navigated', () => {
+    navigationPending = false;
+    scheduleHide();
+});
+
+document.addEventListener('livewire:init', () => {
+    registerLivewireHooks();
+});
+
+document.addEventListener('livewire-upload-start', () => {
+    pendingUploads += 1;
+    tryShow();
+});
+
+document.addEventListener('livewire-upload-finish', () => {
+    pendingUploads = Math.max(0, pendingUploads - 1);
+    tryScheduleHide();
+});
+
+document.addEventListener('livewire-upload-error', () => {
+    pendingUploads = Math.max(0, pendingUploads - 1);
+    tryScheduleHide();
+});
 
 bootInitialLoad();
 

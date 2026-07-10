@@ -15,6 +15,7 @@ class SupplierInvoice extends Model
         'cold_amount',
         'hot_m3',
         'hot_amount',
+        'total_amount',
         'recorded_by_user_id',
     ];
 
@@ -27,6 +28,7 @@ class SupplierInvoice extends Model
             'cold_amount' => 'decimal:2',
             'hot_m3' => 'decimal:3',
             'hot_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
         ];
     }
 

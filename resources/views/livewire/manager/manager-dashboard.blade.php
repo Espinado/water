@@ -1,4 +1,4 @@
-<div wire:poll.4s="pollSubmissionUpdates" class="manager-mobile-pad py-6 sm:py-8">
+<div wire:poll.visible.4s="pollSubmissionUpdates" class="manager-mobile-pad py-6 sm:py-8">
     <x-manager.submission-toast />
 
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
@@ -49,14 +49,14 @@
 
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <x-manager.stat-card
-                    :href="route('manager.apartments', ['filter' => 'debt'])"
+                    :href="route('manager.setup', ['filter' => 'debt'])"
                     :label="__('Не сдали')"
                     :value="$this->stats['debt']"
                     :hint="__('Открыть список долга')"
                     tone="rose"
                 />
                 <x-manager.stat-card
-                    :href="route('manager.apartments', ['filter' => 'submitted'])"
+                    :href="route('manager.setup', ['filter' => 'submitted'])"
                     :label="__('Сдали')"
                     :value="$this->stats['submitted']"
                     :hint="__('Квартиры с показаниями')"
@@ -70,21 +70,21 @@
                     tone="sky"
                 />
                 <x-manager.stat-card
-                    :href="route('manager.apartments', ['filter' => 'no_login'])"
+                    :href="route('manager.setup', ['filter' => 'no_login'])"
                     :label="__('Не входили')"
                     :value="$this->stats['no_login']"
                     :hint="__('Жильцы без входа в систему')"
                     tone="amber"
                 />
                 <x-manager.stat-card
-                    :href="route('manager.apartments', ['filter' => 'no_resident'])"
+                    :href="route('manager.setup', ['filter' => 'no_resident'])"
                     :label="__('Без жильца')"
                     :value="$this->stats['no_resident']"
                     :hint="__('Нужно создать доступ')"
                     tone="violet"
                 />
                 <x-manager.stat-card
-                    :href="route('manager.apartments')"
+                    :href="route('manager.setup')"
                     :label="__('Всего квартир')"
                     :value="$this->stats['total']"
                     :hint="__('Полный список жильцов')"
@@ -93,7 +93,7 @@
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2">
-                <a href="{{ route('manager.apartments', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-primary w-full text-center">
+                <a href="{{ route('manager.setup', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-primary w-full text-center">
                     {{ __('Кто не сдал — список') }}
                 </a>
                 <a href="{{ route('manager.readings', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-secondary w-full text-center">

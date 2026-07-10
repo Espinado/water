@@ -4,7 +4,7 @@
             <div>
                 <h1 class="k16-page-title">{{ __('Показания') }}</h1>
             </div>
-            <a href="{{ route('manager.apartments', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-secondary">
+            <a href="{{ route('manager.setup', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-secondary">
                 {{ __('Кто не сдал') }}
             </a>
         </div>

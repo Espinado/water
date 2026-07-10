@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\AppHost;
+use App\Services\PwaContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -12,7 +14,7 @@ new #[Layout('layouts.guest')] class extends Component
     /**
      * Confirm the current user's password.
      */
-    public function confirmPassword(): void
+    public function confirmPassword(PwaContext $pwa, AppHost $appHost): void
     {
         $this->validate([
             'password' => ['required', 'string'],
@@ -29,7 +31,8 @@ new #[Layout('layouts.guest')] class extends Component
 
         session(['auth.password_confirmed_at' => time()]);
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $homeRoute = $pwa->homeRoute($appHost->forRequest());
+        $this->redirectIntended(default: route($homeRoute, absolute: false), navigate: true);
     }
 }; ?>
 
@@ -54,8 +57,9 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
 
         <div class="flex justify-end mt-4">
-            <x-primary-button>
-                {{ __('Confirm') }}
+            <x-primary-button wire:loading.attr="disabled" wire:target="confirmPassword">
+                <span wire:loading.remove wire:target="confirmPassword">{{ __('Confirm') }}</span>
+                <span wire:loading wire:target="confirmPassword">Lūdzu uzgaidiet</span>
             </x-primary-button>
         </div>
     </form>

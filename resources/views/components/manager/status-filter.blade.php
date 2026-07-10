@@ -9,6 +9,7 @@
             'debt' => ['label' => __('Долг'), 'active' => 'bg-k16-danger text-white', 'idle' => 'border border-k16-danger/30 bg-k16-danger-soft text-k16-danger'],
             'submitted' => ['label' => __('Сданы'), 'active' => 'bg-k16-success text-white', 'idle' => 'border border-k16-success/30 bg-k16-success-soft text-k16-success'],
             'no_login' => ['label' => __('Не входили'), 'active' => 'bg-k16-warning text-white', 'idle' => 'border border-k16-warning/30 bg-k16-warning-soft text-k16-warning'],
+            'no_resident' => ['label' => __('Без жильца'), 'active' => 'bg-violet-600 text-white', 'idle' => 'border border-violet-300 bg-violet-50 text-violet-700'],
         ];
     @endphp
 

@@ -37,4 +37,12 @@ return [
         FILTER_VALIDATE_BOOLEAN,
     ),
 
+    /*
+    | Распознавание показаний по фото — только с мобильных устройств.
+    */
+    'meter_ocr_requires_mobile' => filter_var(
+        env('METER_OCR_REQUIRES_MOBILE', true),
+        FILTER_VALIDATE_BOOLEAN,
+    ),
+
 ];

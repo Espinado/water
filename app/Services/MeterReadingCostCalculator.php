@@ -73,7 +73,7 @@ class MeterReadingCostCalculator
 
     public function previousReading(MeterReading $reading): ?MeterReading
     {
-        [$year, $month] = $this->previousPeriod($reading->year, $reading->month);
+        ['year' => $year, 'month' => $month] = $this->previousPeriod($reading->year, $reading->month);
 
         return MeterReading::query()
             ->where('apartment_id', $reading->apartment_id)
@@ -84,7 +84,7 @@ class MeterReadingCostCalculator
 
     public function nextReading(MeterReading $reading): ?MeterReading
     {
-        [$year, $month] = $this->nextPeriod($reading->year, $reading->month);
+        ['year' => $year, 'month' => $month] = $this->nextPeriod($reading->year, $reading->month);
 
         return MeterReading::query()
             ->where('apartment_id', $reading->apartment_id)

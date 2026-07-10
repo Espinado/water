@@ -1,4 +1,8 @@
-<div class="manager-mobile-pad py-6 sm:py-8">
+<div @if ($inBuilding) wire:poll.visible.4s="pollSubmissionUpdates" @endif class="manager-mobile-pad py-6 sm:py-8">
+    @if ($inBuilding)
+        <x-manager.submission-toast />
+    @endif
+
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
         @if (session('mgr_ok'))
             <div class="k16-alert-success">{{ session('mgr_ok') }}</div>
@@ -54,38 +58,57 @@
                         <x-input-error :messages="$errors->get('new_building_address')" class="mt-1" />
                     </div>
                 </div>
-                <button type="submit" class="k16-btn-primary">{{ __('Добавить дом') }}</button>
+                <button type="submit" class="k16-btn-primary" wire:loading.attr="disabled" wire:target="createBuilding">
+                    <span wire:loading.remove wire:target="createBuilding">{{ __('Добавить дом') }}</span>
+                    <span wire:loading wire:target="createBuilding">Lūdzu uzgaidiet</span>
+                </button>
             </form>
         @else
             @php $building = $this->selectedBuilding; @endphp
-            <div>
-                <button type="button" wire:click="backToBuildings" class="text-base font-semibold text-k16-accent">
-                    ← {{ __('Все дома') }}
-                </button>
-                <h1 class="mt-2 k16-page-title">{{ $building->name }}</h1>
-                <p class="mt-1 k16-page-subtitle">
-                    {{ $building->address ?: __('Адрес не указан') }}
-                    · {{ __(':count кв.', ['count' => $building->apartments_count]) }}
-                </p>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <button type="button" wire:click="backToBuildings" class="text-base font-semibold text-k16-accent">
+                        ← {{ __('Все дома') }}
+                    </button>
+                    <h1 class="mt-2 k16-page-title">{{ $building->name }}</h1>
+                    <p class="mt-1 k16-page-subtitle">
+                        {{ $building->address ?: __('Адрес не указан') }}
+                        · {{ __(':count кв.', ['count' => $building->apartments_count]) }}
+                    </p>
+                </div>
+                <a href="{{ route('manager.readings', ['filter' => $statusFilter === 'submitted' ? 'submitted' : 'debt']) }}" wire:navigate class="k16-btn-primary shrink-0">
+                    {{ __('Ввести показания') }}
+                </a>
             </div>
 
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div class="max-w-md flex-1">
-                    <x-input-label for="apt-search" :value="__('Поиск')" />
-                    <x-text-input
-                        wire:model.live.debounce.300ms="search"
-                        id="apt-search"
-                        type="search"
-                        class="mt-1 block w-full"
-                        :placeholder="__('Квартира, ФИО, email, телефон…')"
-                    />
-                </div>
-                <button type="button" wire:click="startCreateApartment" class="k16-btn-primary shrink-0">
-                    {{ __('Добавить квартиру') }}
-                </button>
-            </div>
+            <x-manager.context-bar
+                :buildings="$this->buildings"
+                :building-id="$building_id"
+                year-model="statusYear"
+                month-model="statusMonth"
+                :period-title="__('Период для статуса показаний')"
+                :locked-period-label="$this->managerLockedPeriodLabel"
+            />
 
             <div class="space-y-4">
+                <x-manager.status-filter :active="$statusFilter" />
+
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div class="max-w-md flex-1">
+                        <x-input-label for="apt-search" :value="__('Поиск')" />
+                        <x-text-input
+                            wire:model.live.debounce.300ms="search"
+                            id="apt-search"
+                            type="search"
+                            class="mt-1 block w-full"
+                            :placeholder="__('Квартира, ФИО, email, телефон…')"
+                        />
+                    </div>
+                    <button type="button" wire:click="startCreateApartment" class="k16-btn-primary shrink-0">
+                        {{ __('Добавить квартиру') }}
+                    </button>
+                </div>
+
                 <div class="flex flex-wrap gap-2" role="group" aria-label="{{ __('Сортировка') }}">
                     @foreach ([
                         'number' => __('Кв.'),
@@ -114,46 +137,89 @@
 
             <div class="space-y-3">
                 @forelse ($this->apartments as $apt)
-                    @php $resident = $apt->users->first(); @endphp
+                    @php
+                        $isDebt = ! $apt->period_meter_reading_id;
+                        $isManagerOccupant = $apt->ru_role === \App\Enums\UserRole::Manager->value;
+                    @endphp
                     <div wire:key="apt-card-{{ $apt->id }}" class="k16-card p-5">
-                        <p class="text-k16-lead font-bold text-k16-text">{{ __('Кв. :number', ['number' => $apt->number]) }}</p>
-                        @if ($apt->area_m2)
-                            <p class="mt-1 text-k16-body text-k16-text-muted">{{ __(':area м²', ['area' => $apt->area_m2]) }}</p>
-                        @endif
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="text-k16-lead font-bold text-k16-text">{{ __('Кв. :number', ['number' => $apt->number]) }}</p>
+                                @if ($apt->area_m2)
+                                    <p class="mt-1 text-k16-body text-k16-text-muted">{{ __(':area м²', ['area' => $apt->area_m2]) }}</p>
+                                @endif
+                                @if ($apt->occupant_user_id)
+                                    <p class="mt-1 text-k16-body text-k16-text-muted">
+                                        {{ $this->occupantDisplayLast($apt) }} {{ $this->occupantDisplayFirst($apt) }}
+                                    </p>
+                                @endif
+                            </div>
+                            @if ($apt->occupant_user_id)
+                                @if ($isDebt)
+                                    <span class="k16-badge-danger">{{ __('Не сдано') }}</span>
+                                @else
+                                    <span class="k16-badge-success">{{ __('Сдано') }}</span>
+                                @endif
+                            @endif
+                        </div>
 
-                        @if ($resident)
-                            <div class="mt-3 space-y-1 text-k16-body">
-                                <p class="font-semibold text-k16-text">{{ $resident->last_name }} {{ $resident->first_name }}</p>
-                                <p class="text-k16-text-muted">{{ $resident->email }}</p>
-                                <p class="text-k16-text-muted">{{ $resident->phone ?: '—' }}</p>
-                                <div class="flex flex-wrap gap-2 pt-2">
-                                    @if ($resident->last_login_at)
+                        @if ($apt->occupant_user_id)
+                            <dl class="mt-4 grid gap-2 text-k16-body sm:grid-cols-2">
+                                <div>
+                                    <span class="text-k16-text-muted">{{ __('Телефон') }}:</span>
+                                    <span class="font-medium">{{ $apt->ru_phone ?: '—' }}</span>
+                                </div>
+                                <div class="break-all sm:col-span-2">
+                                    <span class="text-k16-text-muted">{{ __('Почта') }}:</span>
+                                    <span class="font-medium">{{ $apt->ru_email ?: '—' }}</span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if ($isManagerOccupant)
+                                        <span class="k16-badge-warning">{{ __('Управляющий') }}</span>
+                                    @endif
+                                    @if ($apt->ru_last_login_at)
                                         <span class="k16-badge-success">{{ __('Входил') }}</span>
                                     @else
                                         <span class="k16-badge-warning">{{ __('Не входил') }}</span>
                                     @endif
-                                    @if ($resident->access_suspended_at)
+                                    @if ($apt->ru_access_suspended_at)
                                         <span class="k16-badge-danger">{{ __('Доступ закрыт') }}</span>
                                     @endif
                                 </div>
-                            </div>
+                                <div class="text-base text-k16-text-muted">
+                                    @if ($apt->ru_invitation_sent_at)
+                                        {{ __('Отпр. :date', ['date' => $this->formatInvitationDate($apt->ru_invitation_sent_at)]) }}
+                                    @else
+                                        <span class="text-k16-warning">{{ __('Ссылка не отправлялась') }}</span>
+                                    @endif
+                                </div>
+                            </dl>
 
                             <div class="mt-4 flex flex-wrap items-center gap-2">
-                                <a href="{{ route('manager.readings.apartment', ['apartment' => $apt->id]) }}" wire:navigate class="k16-btn-primary">
-                                    {{ __('Показания') }}
-                                </a>
+                                @if ($isDebt)
+                                    <a href="{{ route('manager.readings.apartment', ['apartment' => $apt->id]) }}" wire:navigate class="k16-btn-primary">
+                                        {{ __('Ввести показания') }}
+                                    </a>
+                                @else
+                                    <a href="{{ route('manager.readings.apartment', ['apartment' => $apt->id]) }}" wire:navigate class="k16-btn-primary">
+                                        {{ __('История показаний') }}
+                                    </a>
+                                @endif
+
                                 <x-k16.action-menu>
-                                    <x-k16.menu-item action="startEditResident" :action-param="$resident->id">
+                                    <x-k16.menu-item action="startEditResident" :action-param="(int) $apt->occupant_user_id">
                                         {{ __('Редактировать') }}
                                     </x-k16.menu-item>
-                                    <x-k16.menu-item action="sendInvitation" :action-param="$resident->id">
-                                        {{ __('Ссылка на пароль') }}
-                                    </x-k16.menu-item>
-                                    @if ($resident->access_suspended_at)
+                                    @if (! $isManagerOccupant)
+                                        <x-k16.menu-item action="sendInvitation" :action-param="(int) $apt->occupant_user_id">
+                                            {{ __('Ссылка на пароль') }}
+                                        </x-k16.menu-item>
+                                    @endif
+                                    @if ($apt->ru_access_suspended_at)
                                         <li class="list-none">
                                             <x-manager.confirm-button
                                                 wire-method="toggleAccess"
-                                                :wire-param="$resident->id"
+                                                :wire-param="(int) $apt->occupant_user_id"
                                                 :title="__('Открыть доступ жильцу?')"
                                                 :confirm-text="__('Открыть доступ')"
                                                 tone="success"
@@ -164,7 +230,7 @@
                                         <li class="list-none">
                                             <x-manager.confirm-button
                                                 wire-method="toggleAccess"
-                                                :wire-param="$resident->id"
+                                                :wire-param="(int) $apt->occupant_user_id"
                                                 :title="__('Закрыть доступ жильцу?')"
                                                 :confirm-text="__('Закрыть доступ')"
                                                 tone="danger"
@@ -193,7 +259,7 @@
                     </div>
                 @empty
                     <div class="k16-card p-8 text-center text-k16-text-muted">
-                        {{ $search !== '' ? __('Ничего не найдено.') : __('В этом доме пока нет квартир.') }}
+                        {{ $search !== '' || $statusFilter !== 'all' ? __('Нет квартир или ничего не найдено.') : __('В этом доме пока нет квартир.') }}
                     </div>
                 @endforelse
 
@@ -292,6 +358,7 @@
     <x-modal name="create-resident" variant="k16" :show="$creatingResidentForApartmentId !== null" focusable>
         <form wire:submit="createResident" class="k16-modal-panel space-y-4">
             <h2 class="k16-modal-title">{{ __('Новый жилец') }}</h2>
+            <p class="text-sm text-k16-text-muted">{{ __('Если указать email существующего управляющего, он будет привязан к квартире — тот же пароль для кабинета жильца.') }}</p>
             <p class="text-k16-body text-k16-text-muted">{{ __('Пароль жилец задаёт сам по ссылке из письма.') }}</p>
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>

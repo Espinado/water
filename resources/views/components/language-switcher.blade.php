@@ -4,16 +4,19 @@
     $supported = config('locales.supported', []);
     $current = app()->getLocale();
     $currentMeta = $supported[$current] ?? reset($supported);
+    $isManagerApp = app(\App\Services\AppHost::class)->isManager();
+    $activeBorder = $isManagerApp ? 'border-red-300 bg-red-50 font-semibold text-red-700' : 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-700';
+    $activeItem = $isManagerApp ? 'bg-red-50 font-semibold text-red-700' : 'bg-emerald-50 font-semibold text-emerald-700';
 @endphp
 
 @if ($inline)
     <div {{ $attributes->merge(['class' => 'flex flex-wrap gap-2']) }}>
         @foreach ($supported as $code => $meta)
             <a
-                href="{{ route('locale.switch', $code) }}"
+                href="{{ url('locale/'.$code) }}"
                 @class([
                     'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm',
-                    'border-indigo-300 bg-indigo-50 font-semibold text-indigo-700' => $code === $current,
+                    $activeBorder => $code === $current,
                     'border-gray-200 bg-white text-gray-700' => $code !== $current,
                 ])
             >
@@ -44,10 +47,10 @@
         >
             @foreach ($supported as $code => $meta)
                 <a
-                    href="{{ route('locale.switch', $code) }}"
+                    href="{{ url('locale/'.$code) }}"
                     @class([
                         'flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50',
-                        'bg-indigo-50 font-semibold text-indigo-700' => $code === $current,
+                        $activeItem => $code === $current,
                         'text-gray-700' => $code !== $current,
                     ])
                 >

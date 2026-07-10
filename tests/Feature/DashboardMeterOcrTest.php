@@ -9,6 +9,7 @@ use App\Models\Building;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Mockery;
@@ -71,6 +72,8 @@ class DashboardMeterOcrTest extends TestCase
 
         $this->app->instance(VisionDocumentTextDetector::class, $mock);
 
+        config(['water.meter_ocr_requires_mobile' => false]);
+
         $building = Building::factory()->create();
         $apartment = Apartment::factory()->for($building)->create();
 
@@ -87,5 +90,29 @@ class DashboardMeterOcrTest extends TestCase
             ->assertSet('hot_m3', '20')
             ->assertSet('hotMeterPhoto', null)
             ->assertSee('Подставлено распознанное значение');
+    }
+
+    public function test_desktop_upload_is_ignored(): void
+    {
+        config(['water.meter_ocr_requires_mobile' => true]);
+
+        $building = Building::factory()->create();
+        $apartment = Apartment::factory()->for($building)->create();
+
+        $user = User::factory()->create([
+            'apartment_id' => $apartment->id,
+        ]);
+
+        $request = Request::create($this->residentUrl('/dashboard'), 'GET', server: [
+            'HTTP_USER_AGENT' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ]);
+
+        $this->app->instance('request', $request);
+
+        Livewire::actingAs($user)
+            ->test(Dashboard::class)
+            ->set('coldMeterPhoto', UploadedFile::fake()->image('cold.jpg', 20, 20))
+            ->assertSet('cold_m3', '')
+            ->assertSet('coldMeterPhoto', null);
     }
 }

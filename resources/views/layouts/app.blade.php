@@ -7,10 +7,11 @@
 
         @php($pwaAppKey = $pwaAppKey ?? app(\App\Services\PwaContext::class)->appKey())
 
-        <title>@isset($pwaAppKey){{ config("pwa.apps.{$pwaAppKey}.name") }}@else{{ config('app.name', 'Laravel') }}@endisset</title>
+        <title>@isset($pwaAppKey){{ app(\App\Services\PwaContext::class)->appConfig($pwaAppKey)['name'] }}@else{{ config('app.name', 'Laravel') }}@endisset</title>
 
         @isset($pwaAppKey)
             <x-pwa-meta :app-key="$pwaAppKey" />
+            <x-pwa-init :app-key="$pwaAppKey" />
         @endisset
 
         <x-confirm-save-meta />
@@ -43,8 +44,12 @@
 
         <x-wait-overlay
             id="app-page-loading"
-            :color="($pwaAppKey ?? '') === 'manager' ? 'emerald' : 'sky'"
-            class="flex"
+            :color="($pwaAppKey ?? '') === 'manager' ? 'red' : 'emerald'"
+            class="hidden"
         />
+
+        @isset($pwaAppKey)
+            <x-pwa-install-bar :app-key="$pwaAppKey" />
+        @endisset
     </body>
 </html>

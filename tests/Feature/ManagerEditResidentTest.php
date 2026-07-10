@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Manager\ApartmentTable;
+use App\Livewire\Manager\HouseholdPanel;
 use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\User;
@@ -14,7 +14,7 @@ class ManagerEditResidentTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_manager_can_edit_resident_in_apartment_table(): void
+    public function test_manager_can_edit_resident_in_setup_panel(): void
     {
         $building = Building::factory()->create();
         $apartment = Apartment::factory()->for($building)->create(['number' => '19']);
@@ -29,17 +29,17 @@ class ManagerEditResidentTest extends TestCase
         ]);
 
         Livewire::actingAs($manager)
-            ->test(ApartmentTable::class)
-            ->set('building_id', $building->id)
+            ->test(HouseholdPanel::class)
+            ->call('openBuilding', $building->id)
             ->call('startEditResident', $resident->id)
-            ->assertSet('edit_first_name', 'Julja')
+            ->assertSet('edit_resident_first_name', 'Julja')
             ->assertSet('editingResidentId', $resident->id)
-            ->assertSet('edit_last_name', 'Junusova')
-            ->assertSet('edit_email', 'julja@example.com')
-            ->set('edit_first_name', 'Julia')
-            ->set('edit_last_name', 'Yunusova')
-            ->set('edit_phone', '+37121111111')
-            ->set('edit_email', 'julia@example.com')
+            ->assertSet('edit_resident_last_name', 'Junusova')
+            ->assertSet('edit_resident_email', 'julja@example.com')
+            ->set('edit_resident_first_name', 'Julia')
+            ->set('edit_resident_last_name', 'Yunusova')
+            ->set('edit_resident_phone', '+37121111111')
+            ->set('edit_resident_email', 'julia@example.com')
             ->call('saveResident')
             ->assertHasNoErrors()
             ->assertSet('editingResidentId', null);
@@ -62,8 +62,8 @@ class ManagerEditResidentTest extends TestCase
         $resident = User::factory()->create(['apartment_id' => $apartmentB->id]);
 
         Livewire::actingAs($manager)
-            ->test(ApartmentTable::class)
-            ->set('building_id', $buildingA->id)
+            ->test(HouseholdPanel::class)
+            ->call('openBuilding', $buildingA->id)
             ->call('startEditResident', $resident->id)
             ->assertForbidden();
     }

@@ -1,10 +1,10 @@
 <?php
 
 use App\Models\User;
+use App\Services\AppHost;
 use App\Services\PwaContext;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
@@ -57,10 +57,14 @@ new #[Layout('layouts.guest')] class extends Component
         $status = Password::reset(
             $this->only('email', 'password', 'password_confirmation', 'token'),
             function (User $resetUser) use (&$user) {
-                $resetUser->forceFill([
-                    'password' => Hash::make($this->password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+                $resetUser->password = $this->password;
+                $resetUser->remember_token = Str::random(60);
+
+                if ($resetUser->email_verified_at === null) {
+                    $resetUser->email_verified_at = now();
+                }
+
+                $resetUser->save();
 
                 $user = $resetUser;
 
@@ -80,17 +84,15 @@ new #[Layout('layouts.guest')] class extends Component
         Auth::login($user);
         Session::regenerate();
 
-        $this->redirectRoute('pwa.install', [
-            'app' => $this->pwaApp,
-            'welcome' => 1,
-        ], navigate: false);
+        $homeRoute = $pwa->homeRoute($this->pwaApp);
+        $this->redirectIntended(default: route($homeRoute, absolute: false), navigate: false);
     }
 }; ?>
 
 <div>
     <div class="mb-6 text-center">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Установка пароля') }}</p>
-        <p class="mt-1 text-lg font-bold text-slate-900">{{ config("pwa.apps.{$pwaApp}.name") }}</p>
+        <p class="mt-1 text-lg font-bold text-slate-900">{{ app(\App\Services\PwaContext::class)->appConfig($pwaApp)['name'] }}</p>
     </div>
 
     <p class="mb-4 text-sm text-gray-600">
@@ -121,8 +123,9 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
 
         <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Сохранить пароль') }}
+            <x-primary-button wire:loading.attr="disabled" wire:target="resetPassword">
+                <span wire:loading.remove wire:target="resetPassword">{{ __('Сохранить пароль') }}</span>
+                <span wire:loading wire:target="resetPassword">Lūdzu uzgaidiet</span>
             </x-primary-button>
         </div>
     </form>

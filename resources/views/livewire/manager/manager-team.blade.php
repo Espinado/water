@@ -2,7 +2,7 @@
     <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
             <h1 class="k16-page-title">{{ __('Команда') }}</h1>
-            <p class="mt-2 k16-page-subtitle">{{ __('Управляющие с доступом к панели дома. Новому сотруднику отправляется ссылка для самостоятельной установки пароля.') }}</p>
+            <p class="mt-2 k16-page-subtitle">{{ __('Управляющие с доступом к панели дома. Если управляющий живёт в доме — привяжите его квартиру: тот же email и пароль подойдут для приложения жильца.') }}</p>
         </div>
 
         @if (session('mgr_ok'))
@@ -45,6 +45,10 @@
                         <div>
                             <dt class="font-medium text-k16-text">{{ __('Последний вход') }}</dt>
                             <dd class="mt-0.5">{{ $this->formatDate($manager->last_login_at) }}</dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="font-medium text-k16-text">{{ __('Квартира (приложение жильца)') }}</dt>
+                            <dd class="mt-0.5">{{ $this->apartmentLabel($manager) }}</dd>
                         </div>
                     </dl>
 
@@ -141,6 +145,17 @@
                     <x-input-label for="edit-email" :value="__('Email')" />
                     <x-text-input wire:model="edit_email" id="edit-email" type="email" class="mt-1 block w-full" required />
                     <x-input-error :messages="$errors->get('edit_email')" class="mt-1" />
+                </div>
+                <div class="sm:col-span-2">
+                    <x-input-label for="edit-apartment" :value="__('Квартира (необязательно)')" />
+                    <select wire:model="edit_apartment_id" id="edit-apartment" class="mt-1 block w-full rounded-xl border-k16-border shadow-sm focus:border-k16-accent focus:ring-k16-accent">
+                        <option value="">{{ __('Не привязан к квартире') }}</option>
+                        @foreach ($this->apartments as $apartment)
+                            <option value="{{ $apartment->id }}">{{ $apartment->label() }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-sm text-k16-text-muted">{{ __('Один email — для входа и в панель управляющего, и в кабинет жильца этой квартиры.') }}</p>
+                    <x-input-error :messages="$errors->get('edit_apartment_id')" class="mt-1" />
                 </div>
                 <div class="sm:col-span-2">
                     <x-input-label for="edit-phone" :value="__('Телефон')" />

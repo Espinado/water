@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Forms\LoginForm;
+use App\Services\AppHost;
 use App\Services\PwaContext;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
@@ -13,14 +14,14 @@ new #[Layout('layouts.guest')] class extends Component
 
     public string $pwaApp = 'resident';
 
-    public function mount(PwaContext $pwa): void
+    public function mount(PwaContext $pwa, AppHost $appHost): void
     {
-        $this->pwaApp = request()->routeIs('login.manager') ? 'manager' : 'resident';
+        $this->pwaApp = $appHost->isManager() ? AppHost::MANAGER : AppHost::RESIDENT;
         $pwa->rememberApp($this->pwaApp);
         View::share('pwaAppKey', $this->pwaApp);
     }
 
-    public function login(PwaContext $pwa): void
+    public function login(PwaContext $pwa, AppHost $appHost): void
     {
         $this->validate();
 
@@ -31,20 +32,16 @@ new #[Layout('layouts.guest')] class extends Component
         $user = auth()->user();
         $homeRoute = $pwa->homeRoute($this->pwaApp);
 
-        if ($this->pwaApp === 'manager' && $user->isResident()) {
+        if ($this->pwaApp === AppHost::MANAGER && ! $user->canUseManagerApp()) {
             auth()->logout();
-            session()->flash('login_error', __('Эта учётная запись — жилец. Используйте приложение для жильца.'));
-
-            $this->redirect(route('login.resident', absolute: false), navigate: false);
+            session()->flash('login_error', __('Эта учётная запись не имеет доступа к приложению управляющего.'));
 
             return;
         }
 
-        if ($this->pwaApp === 'resident' && $user->isManager()) {
+        if ($this->pwaApp === AppHost::RESIDENT && ! $user->canUseResidentApp()) {
             auth()->logout();
-            session()->flash('login_error', __('Эта учётная запись — управляющий. Используйте приложение для управляющего.'));
-
-            $this->redirect(route('login.manager', absolute: false), navigate: false);
+            session()->flash('login_error', __('Эта учётная запись не имеет доступа к приложению жильца. Управляющему нужна назначенная квартира — обратитесь к коллеге или войдите в приложение управляющего.'));
 
             return;
         }
@@ -54,11 +51,12 @@ new #[Layout('layouts.guest')] class extends Component
 }; ?>
 
 <div>
-    <x-wait-overlay target="login" :color="$pwaApp === 'manager' ? 'emerald' : 'sky'" />
+    @php($forgotPasswordRoute = $pwaApp === 'manager' ? 'manager.password.request' : 'password.request')
+    @php($pwaContext = app(PwaContext::class))
 
     <div class="mb-6 text-center">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Вход') }}</p>
-        <p class="mt-1 text-lg font-bold text-slate-900">{{ config("pwa.apps.{$pwaApp}.name") }}</p>
+        <p class="mt-1 text-lg font-bold text-slate-900">{{ app(\App\Services\PwaContext::class)->appConfig($pwaApp)['name'] }}</p>
     </div>
 
     <!-- Session Status -->
@@ -90,32 +88,37 @@ new #[Layout('layouts.guest')] class extends Component
         <!-- Remember Me -->
         <div class="block mt-4">
             <label for="remember" class="inline-flex items-center">
-                <input wire:model="form.remember" id="remember" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
+                <input wire:model="form.remember" id="remember" type="checkbox" @class([
+                    'rounded border-gray-300 shadow-sm',
+                    'text-red-600 focus:ring-red-500' => $pwaApp === 'manager',
+                    'text-emerald-600 focus:ring-emerald-500' => $pwaApp !== 'manager',
+                ]) name="remember">
                 <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
             </label>
         </div>
 
         <div class="flex items-center justify-end mt-4">
-            @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}" wire:navigate>
+            @if ($pwaApp === 'manager' && Route::has($forgotPasswordRoute))
+                <a @class([
+                    'underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2',
+                    'focus:ring-red-500' => $pwaApp === 'manager',
+                    'focus:ring-emerald-500' => $pwaApp !== 'manager',
+                ]) href="{{ route($forgotPasswordRoute) }}" wire:navigate>
                     {{ __('Forgot your password?') }}
                 </a>
             @endif
 
-            <x-primary-button class="ms-3" wire:loading.attr="disabled" wire:target="login">
+            <x-primary-button @class(['ms-3' => $pwaApp === 'manager']) wire:loading.attr="disabled" wire:target="login">
                 <span wire:loading.remove wire:target="login">{{ __('Log in') }}</span>
                 <span wire:loading wire:target="login">Lūdzu uzgaidiet</span>
             </x-primary-button>
         </div>
     </form>
 
-    <p class="mt-6 text-center text-xs text-slate-500">
-        @if ($pwaApp === 'resident')
-            {{ __('Нужен доступ управляющего?') }}
-            <a href="{{ route('pwa.install', 'manager') }}" class="font-semibold text-emerald-700">{{ __('Приложение для управляющего') }}</a>
-        @else
+    @if ($pwaApp === 'manager')
+        <p class="mt-6 text-center text-xs text-slate-500">
             {{ __('Вы жилец?') }}
-            <a href="{{ route('pwa.install', 'resident') }}" class="font-semibold text-sky-700">{{ __('Приложение для жильца') }}</a>
-        @endif
-    </p>
+            <a href="{{ $pwaContext->installUrl('resident') }}" class="font-semibold text-emerald-700">{{ __('Приложение для жильца') }}</a>
+        </p>
+    @endif
 </div>

@@ -4,6 +4,7 @@ namespace App\Livewire\Manager;
 
 use App\Enums\UserRole;
 use App\Livewire\Concerns\HasManagerContext;
+use App\Livewire\Concerns\NormalizesDecimalInput;
 use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\MeterReading;
@@ -27,7 +28,11 @@ use Livewire\WithPagination;
 class MeterReadings extends Component
 {
     use HasManagerContext;
+    use NormalizesDecimalInput;
     use WithPagination;
+
+    /** @var list<string> */
+    protected array $decimalInputProperties = ['edit_cold', 'edit_hot'];
 
     public ?int $building_id = null;
 
