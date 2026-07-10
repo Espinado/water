@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class PwaContext
@@ -10,11 +12,18 @@ class PwaContext
     {
         $request ??= request();
 
-        if ($request->routeIs('manager.*', 'pwa.manager', 'login.manager')) {
+        if ($request->routeIs('pwa.install', 'pwa.open')) {
+            $app = $request->route('app');
+            if (is_string($app) && $this->isValidApp($app)) {
+                return $app;
+            }
+        }
+
+        if ($request->routeIs('manager.*', 'login.manager')) {
             return 'manager';
         }
 
-        if ($request->routeIs('dashboard', 'pwa.resident', 'login.resident', 'login')) {
+        if ($request->routeIs('dashboard', 'login.resident', 'login')) {
             return 'resident';
         }
 
@@ -60,5 +69,15 @@ class PwaContext
     public function isValidApp(string $appKey): bool
     {
         return array_key_exists($appKey, config('pwa.apps', []));
+    }
+
+    public function appKeyForUser(User $user): string
+    {
+        return $user->role === UserRole::Manager ? 'manager' : 'resident';
+    }
+
+    public function loginRoute(string $appKey): string
+    {
+        return (string) config("pwa.apps.{$appKey}.login_route", 'login');
     }
 }

@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\User;
+use App\Services\PwaContext;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
@@ -14,24 +18,33 @@ new #[Layout('layouts.guest')] class extends Component
 {
     #[Locked]
     public string $token = '';
+
     public string $email = '';
+
     public string $password = '';
+
     public string $password_confirmation = '';
 
-    /**
-     * Mount the component.
-     */
-    public function mount(string $token): void
+    public string $pwaApp = 'resident';
+
+    public function mount(string $token, PwaContext $pwa): void
     {
         $this->token = $token;
-
         $this->email = request()->string('email');
+
+        $requestedApp = request()->string('app');
+        if ($requestedApp->isNotEmpty() && $pwa->isValidApp($requestedApp->toString())) {
+            $this->pwaApp = $requestedApp->toString();
+        } else {
+            $user = User::query()->where('email', $this->email)->first();
+            $this->pwaApp = $user ? $pwa->appKeyForUser($user) : 'resident';
+        }
+
+        $pwa->rememberApp($this->pwaApp);
+        View::share('pwaAppKey', $this->pwaApp);
     }
 
-    /**
-     * Reset the password for the given user.
-     */
-    public function resetPassword(): void
+    public function resetPassword(PwaContext $pwa): void
     {
         $this->validate([
             'token' => ['required'],
@@ -39,37 +52,47 @@ new #[Layout('layouts.guest')] class extends Component
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
+        $user = null;
+
         $status = Password::reset(
             $this->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user) {
-                $user->forceFill([
+            function (User $resetUser) use (&$user) {
+                $resetUser->forceFill([
                     'password' => Hash::make($this->password),
                     'remember_token' => Str::random(60),
                 ])->save();
 
-                event(new PasswordReset($user));
+                $user = $resetUser;
+
+                event(new PasswordReset($resetUser));
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
-        if ($status != Password::PASSWORD_RESET) {
+        if ($status != Password::PASSWORD_RESET || ! $user instanceof User) {
             $this->addError('email', __($status));
 
             return;
         }
 
-        Session::flash('status', __($status));
+        $this->pwaApp = $pwa->appKeyForUser($user);
+        $pwa->rememberApp($this->pwaApp);
 
-        $this->redirectRoute('login', navigate: true);
+        Auth::login($user);
+        Session::regenerate();
+
+        $this->redirectRoute('pwa.install', [
+            'app' => $this->pwaApp,
+            'welcome' => 1,
+        ], navigate: false);
     }
 }; ?>
 
 <div>
+    <div class="mb-6 text-center">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Установка пароля') }}</p>
+        <p class="mt-1 text-lg font-bold text-slate-900">{{ config("pwa.apps.{$pwaApp}.name") }}</p>
+    </div>
+
     <p class="mb-4 text-sm text-gray-600">
         {{ __('Придумайте пароль для входа и введите его дважды — во втором поле подтверждение должно совпадать с первым.') }}
     </p>

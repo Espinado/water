@@ -29,6 +29,10 @@ Route::get('app/{app}', [PwaInstallController::class, 'show'])
 Route::get('app/{app}/open', [PwaInstallController::class, 'open'])
     ->whereIn('app', ['resident', 'manager'])
     ->name('pwa.open');
+Route::get('app/{app}/continue', [PwaInstallController::class, 'continue'])
+    ->whereIn('app', ['resident', 'manager'])
+    ->middleware('auth')
+    ->name('pwa.continue');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');

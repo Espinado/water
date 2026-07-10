@@ -45,8 +45,8 @@ class PasswordResetTest extends TestCase
             ->set('email', $user->email)
             ->call('sendPasswordResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-            $response = $this->get('/reset-password/'.$notification->token);
+        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+            $response = $this->get('/reset-password/'.$notification->token.'?email='.urlencode($user->email).'&app=resident');
 
             $response
                 ->assertSeeVolt('pages.auth.reset-password')
@@ -75,8 +75,38 @@ class PasswordResetTest extends TestCase
             $component->call('resetPassword');
 
             $component
-                ->assertRedirect('/login')
+                ->assertRedirect(route('pwa.install', ['app' => 'resident', 'welcome' => 1], absolute: false))
                 ->assertHasNoErrors();
+
+            $this->assertAuthenticatedAs($user);
+
+            return true;
+        });
+    }
+
+    public function test_manager_invitation_reset_logs_in_and_offers_manager_app_install(): void
+    {
+        Notification::fake();
+
+        $manager = User::factory()->manager()->create();
+
+        Volt::test('pages.auth.forgot-password')
+            ->set('email', $manager->email)
+            ->call('sendPasswordResetLink');
+
+        Notification::assertSentTo($manager, ResetPassword::class, function ($notification) use ($manager) {
+            $component = Volt::test('pages.auth.reset-password', ['token' => $notification->token])
+                ->set('email', $manager->email)
+                ->set('password', 'password')
+                ->set('password_confirmation', 'password');
+
+            $component->call('resetPassword');
+
+            $component
+                ->assertRedirect(route('pwa.install', ['app' => 'manager', 'welcome' => 1], absolute: false))
+                ->assertHasNoErrors();
+
+            $this->assertAuthenticatedAs($manager);
 
             return true;
         });

@@ -19,10 +19,6 @@
 /storage/*.key
 /storage/pail
 /vendor
-/tools/comfyui/.venv
-/tools/comfyui/ComfyUI
-/tools/comfyui/models
-/tools/comfyui/output
 _ide_helper.php
 Homestead.json
 Homestead.yaml

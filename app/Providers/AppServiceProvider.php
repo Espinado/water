@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\GeminiMeterReadingRecognizer;
 use App\Services\GoogleCloudVisionDocumentTextDetector;
 use App\Services\MeterSubmissionWindow;
+use App\Services\PwaContext;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Gate;
@@ -36,9 +37,14 @@ class AppServiceProvider extends ServiceProvider
         Schema::defaultStringLength(191);
 
         ResetPassword::toMailUsing(function (object $notifiable, string $token): MailMessage {
+            $app = $notifiable instanceof User
+                ? app(PwaContext::class)->appKeyForUser($notifiable)
+                : 'resident';
+
             $url = url(route('password.reset', [
                 'token' => $token,
                 'email' => $notifiable->getEmailForPasswordReset(),
+                'app' => $app,
             ], false));
 
             $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');

@@ -4,9 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite",
-        "image:install": "powershell -ExecutionPolicy Bypass -File tools/comfyui/install.ps1",
-        "image:start": "powershell -ExecutionPolicy Bypass -File tools/comfyui/start.ps1"
+        "dev": "vite"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.2",

@@ -41,6 +41,15 @@
                 <h1 class="mt-6 text-2xl font-bold text-slate-900">{{ $appConfig['name'] }}</h1>
                 <p class="mt-2 text-sm leading-relaxed text-slate-600">{{ __($appConfig['description']) }}</p>
 
+                @if ($welcome ?? false)
+                    <div class="mt-6 w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-100">
+                        <p class="text-sm font-semibold text-slate-900">{{ __('Пароль сохранён') }}</p>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-600">
+                            {{ __('Установите приложение на телефон — так входить удобнее. После установки открывайте K16 с главного экрана.') }}
+                        </p>
+                    </div>
+                @endif
+
                 <div id="pwa-already-installed" class="mt-8 hidden w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-100">
                     <p class="text-sm font-semibold text-slate-900">{{ __('Приложение установлено') }}</p>
                     <p class="mt-2 text-sm leading-relaxed text-slate-600">{{ __('Откройте ярлык K16 на главном экране телефона.') }}</p>
@@ -91,13 +100,23 @@
                     </button>
                 </div>
 
-                <a
-                    href="{{ route('pwa.open', $appKey) }}"
-                    class="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white shadow-md"
-                    style="background-color: {{ $appConfig['theme_color'] }}"
-                >
-                    {{ __('Войти') }}
-                </a>
+                @if ($authenticated ?? false)
+                    <a
+                        href="{{ route('pwa.continue', $appKey) }}"
+                        class="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white shadow-md"
+                        style="background-color: {{ $appConfig['theme_color'] }}"
+                    >
+                        {{ ($welcome ?? false) ? __('Продолжить без установки') : __('Открыть приложение') }}
+                    </a>
+                @else
+                    <a
+                        href="{{ route('pwa.open', $appKey) }}"
+                        class="mt-6 inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white shadow-md"
+                        style="background-color: {{ $appConfig['theme_color'] }}"
+                    >
+                        {{ __('Войти') }}
+                    </a>
+                @endif
 
                 @if ($appKey === 'resident')
                     <p class="mt-4 text-xs text-slate-500">
@@ -115,7 +134,7 @@
 
         <script>
             window.__PWA_APP__ = @json($appKey);
-            window.__PWA_OPEN_URL__ = @json(url(config("pwa.apps.{$appKey}.start_url")));
+            window.__PWA_OPEN_URL__ = @json(url(route('pwa.open', $appKey, false)));
             window.__PWA_SECURE__ = @json(request()->secure());
             window.__PWA_LABELS__ = {
                 preparing: @json(__('Подготовка…')),

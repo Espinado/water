@@ -26,14 +26,55 @@ class PwaAppsTest extends TestCase
         $this->get('/manifest/resident.webmanifest')
             ->assertOk()
             ->assertHeader('Content-Type', 'application/manifest+json')
-            ->assertJsonFragment(['id' => 'k16-resident', 'start_url' => '/dashboard'])
+            ->assertJsonFragment(['id' => 'k16-resident', 'start_url' => '/app/resident/open'])
             ->assertJsonFragment(['src' => '/icons/resident/icon-192.png', 'purpose' => 'any'])
             ->assertJsonFragment(['src' => '/icons/resident/icon-maskable-512.png', 'purpose' => 'maskable']);
 
         $this->get('/manifest/manager.webmanifest')
             ->assertOk()
-            ->assertJsonFragment(['id' => 'k16-manager', 'start_url' => '/manager'])
+            ->assertJsonFragment(['id' => 'k16-manager', 'start_url' => '/app/manager/open'])
             ->assertJsonFragment(['src' => '/icons/manager/icon-192.png', 'purpose' => 'any']);
+    }
+
+    public function test_pwa_open_sets_cookie_and_redirects_guest_to_correct_login(): void
+    {
+        $this->get('/app/manager/open')
+            ->assertRedirect(route('login.manager'))
+            ->assertCookie(config('pwa.cookie'), 'manager');
+
+        $this->get('/app/resident/open')
+            ->assertRedirect(route('login.resident'))
+            ->assertCookie(config('pwa.cookie'), 'resident');
+    }
+
+    public function test_pwa_open_redirects_authenticated_user_to_home(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $resident = User::factory()->create(['apartment_id' => null]);
+
+        $this->actingAs($manager)
+            ->get('/app/manager/open')
+            ->assertRedirect(route('manager.dashboard'));
+
+        $this->actingAs($resident)
+            ->get('/app/resident/open')
+            ->assertRedirect(route('dashboard'));
+    }
+
+    public function test_pwa_continue_requires_auth_and_matching_role(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $resident = User::factory()->create(['apartment_id' => null]);
+
+        $this->actingAs($manager)
+            ->get('/app/manager/continue')
+            ->assertRedirect(route('manager.dashboard'));
+
+        $this->actingAs($resident)
+            ->get('/app/resident/continue')
+            ->assertRedirect(route('dashboard'));
+
+        $this->get('/app/manager/continue')->assertForbidden();
     }
 
     public function test_pwa_icon_files_exist(): void

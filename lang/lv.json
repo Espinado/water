@@ -445,5 +445,9 @@
     "Отключить доступ": "Atslēgt piekļuvi",
     "Удалить управляющего?": "Dzēst pārvaldnieku?",
     "Учётная запись :name будет удалена без возможности восстановления.": "Konts :name tiks dzēsts bez iespējas atjaunot.",
-    "вы": "jūs"
+    "вы": "jūs",
+    "Пароль сохранён": "Parole saglabāta",
+    "Установите приложение на телефон — так входить удобнее. После установки открывайте K16 с главного экрана.": "Instalējiet lietotni tālrunī — tā ir ērtāk. Pēc instalācijas atveriet K16 no sākuma ekrāna.",
+    "Продолжить без установки": "Turpināt bez instalācijas",
+    "Открыть приложение": "Atvērt lietotni"
 }

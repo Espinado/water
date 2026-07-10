@@ -17,6 +17,8 @@ class PwaInstallController extends Controller
         return view('pwa.install', [
             'appKey' => $app,
             'appConfig' => config("pwa.apps.{$app}"),
+            'welcome' => request()->boolean('welcome'),
+            'authenticated' => auth()->check(),
         ]);
     }
 
@@ -39,6 +41,25 @@ class PwaInstallController extends Controller
             request()->session()->regenerateToken();
         }
 
-        return redirect()->route(config("pwa.apps.{$app}.login_route"));
+        return redirect()->route($pwa->loginRoute($app));
+    }
+
+    public function continue(string $app, PwaContext $pwa): RedirectResponse
+    {
+        abort_unless($pwa->isValidApp($app), 404);
+        abort_unless(auth()->check(), 403);
+
+        $pwa->rememberApp($app);
+        $user = auth()->user();
+
+        if ($app === 'manager' && $user->isManager()) {
+            return redirect()->route('manager.dashboard');
+        }
+
+        if ($app === 'resident' && $user->isResident()) {
+            return redirect()->route('dashboard');
+        }
+
+        abort(403);
     }
 }
