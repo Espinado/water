@@ -101,6 +101,7 @@ class ManagerDashboard extends Component
                 'debt' => 0,
                 'no_login' => 0,
                 'no_resident' => 0,
+                'total_area_m2' => 0.0,
             ];
         }
 
@@ -129,6 +130,22 @@ class ManagerDashboard extends Component
         }
 
         return (int) round(($this->stats['submitted'] / $total) * 100);
+    }
+
+    #[Computed]
+    public function totalApartmentsDisplay(): string
+    {
+        $total = $this->stats['total'];
+        $area = (float) ($this->stats['total_area_m2'] ?? 0);
+
+        if ($area <= 0) {
+            return (string) $total;
+        }
+
+        return __(':count · :area м²', [
+            'count' => $total,
+            'area' => number_format($area, 2, ',', ' '),
+        ]);
     }
 
     public function render(): View

@@ -56,20 +56,6 @@
                     tone="rose"
                 />
                 <x-manager.stat-card
-                    :href="route('manager.setup', ['filter' => 'submitted'])"
-                    :label="__('Сдали')"
-                    :value="$this->stats['submitted']"
-                    :hint="__('Квартиры с показаниями')"
-                    tone="emerald"
-                />
-                <x-manager.stat-card
-                    :href="route('manager.readings', ['filter' => 'debt'])"
-                    :label="__('Ввести показания')"
-                    :value="$this->stats['debt']"
-                    :hint="__('Таблица ввода для должников')"
-                    tone="sky"
-                />
-                <x-manager.stat-card
                     :href="route('manager.setup', ['filter' => 'no_login'])"
                     :label="__('Не входили')"
                     :value="$this->stats['no_login']"
@@ -86,19 +72,10 @@
                 <x-manager.stat-card
                     :href="route('manager.setup')"
                     :label="__('Всего квартир')"
-                    :value="$this->stats['total']"
+                    :value="$this->totalApartmentsDisplay"
                     :hint="__('Полный список жильцов')"
                     tone="indigo"
                 />
-            </div>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-                <a href="{{ route('manager.setup', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-primary w-full text-center">
-                    {{ __('Кто не сдал — список') }}
-                </a>
-                <a href="{{ route('manager.readings', ['filter' => 'debt']) }}" wire:navigate class="k16-btn-secondary w-full text-center">
-                    {{ __('Ввести показания') }}
-                </a>
             </div>
         @endif
     </div>

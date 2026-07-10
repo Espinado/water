@@ -34,6 +34,10 @@ class SupplierInvoices extends Component
 
     public bool $invoiceModalOpen = false;
 
+    public bool $invoiceDetailOpen = false;
+
+    public ?int $viewingInvoiceId = null;
+
     public int $form_year = 0;
 
     public int $form_month = 0;
@@ -59,7 +63,18 @@ class SupplierInvoices extends Component
             $this->loadInvoiceFormForPeriod($this->form_year, $this->form_month);
         }
 
-        unset($this->invoices, $this->selectedProviderIsWater);
+        unset($this->invoices, $this->selectedProviderIsWater, $this->showAllProviders, $this->viewingInvoice);
+    }
+
+    public function setProviderFilter(string $value): void
+    {
+        $this->service_provider_id = $value === 'all' ? null : (int) $value;
+
+        if ($this->invoiceModalOpen) {
+            $this->loadInvoiceFormForPeriod($this->form_year, $this->form_month);
+        }
+
+        unset($this->invoices, $this->selectedProviderIsWater, $this->showAllProviders, $this->viewingInvoice);
     }
 
     public function updatedSearch(): void
@@ -75,6 +90,10 @@ class SupplierInvoices extends Component
 
     public function openInvoiceModal(): void
     {
+        if ($this->service_provider_id === null) {
+            $this->service_provider_id = $this->providers->first()?->id;
+        }
+
         $now = now();
         $this->form_year = (int) $now->year;
         $this->form_month = (int) $now->month;
@@ -92,6 +111,7 @@ class SupplierInvoices extends Component
             return;
         }
 
+        $this->closeInvoiceDetail();
         $this->service_provider_id = $invoice->service_provider_id;
         $this->form_year = $invoice->year;
         $this->form_month = $invoice->month;
@@ -100,6 +120,35 @@ class SupplierInvoices extends Component
         $this->resetValidation();
         unset($this->selectedProviderIsWater);
         $this->dispatch('open-modal', 'edit-invoice');
+    }
+
+    public function viewInvoice(int $invoiceId): void
+    {
+        $invoice = SupplierInvoice::query()->findOrFail($invoiceId);
+
+        if ($this->service_provider_id !== null && $invoice->service_provider_id !== $this->service_provider_id) {
+            return;
+        }
+
+        $this->viewingInvoiceId = $invoiceId;
+        $this->invoiceDetailOpen = true;
+        $this->dispatch('open-modal', 'view-invoice');
+    }
+
+    public function closeInvoiceDetail(): void
+    {
+        $this->invoiceDetailOpen = false;
+        $this->viewingInvoiceId = null;
+        $this->dispatch('close-modal', 'view-invoice');
+    }
+
+    public function editFromDetail(): void
+    {
+        if ($this->viewingInvoiceId === null) {
+            return;
+        }
+
+        $this->editInvoice($this->viewingInvoiceId);
     }
 
     public function cancelInvoiceModal(): void
@@ -208,14 +257,33 @@ class SupplierInvoices extends Component
     }
 
     #[Computed]
-    public function invoices(): Collection
+    public function showAllProviders(): bool
     {
-        if ($this->service_provider_id === null) {
-            return collect();
+        return $this->service_provider_id === null;
+    }
+
+    #[Computed]
+    public function viewingInvoice(): ?SupplierInvoice
+    {
+        if ($this->viewingInvoiceId === null) {
+            return null;
         }
 
-        $invoices = SupplierInvoice::query()
-            ->where('service_provider_id', $this->service_provider_id)
+        return SupplierInvoice::query()
+            ->with(['provider.rates'])
+            ->find($this->viewingInvoiceId);
+    }
+
+    #[Computed]
+    public function invoices(): Collection
+    {
+        $query = SupplierInvoice::query()->with(['provider.rates']);
+
+        if ($this->service_provider_id !== null) {
+            $query->where('service_provider_id', $this->service_provider_id);
+        }
+
+        $invoices = $query
             ->get()
             ->filter(fn (SupplierInvoice $invoice) => $this->matchesPeriodSearch($invoice->year, $invoice->month, $this->search));
 
@@ -255,6 +323,13 @@ class SupplierInvoices extends Component
         }
 
         return (float) $invoice->cold_amount + (float) $invoice->hot_amount;
+    }
+
+    public function invoiceIsWater(SupplierInvoice $invoice): bool
+    {
+        $provider = $invoice->provider;
+
+        return $provider !== null && $this->providerSuppliesWater($provider);
     }
 
     public function formatPeriodLabel(int $year, int $month): string
@@ -325,7 +400,9 @@ class SupplierInvoices extends Component
             return;
         }
 
-        $this->service_provider_id = $this->providers->first()?->id;
+        if ($this->providers->count() === 1) {
+            $this->service_provider_id = $this->providers->first()?->id;
+        }
     }
 
     protected function loadInvoiceFormForPeriod(int $year, int $month): void

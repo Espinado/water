@@ -59,4 +59,17 @@ class ManagerDashboardTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_dashboard_shows_total_area_next_to_apartment_count(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $building = Building::factory()->create();
+        Apartment::factory()->for($building)->create(['number' => '1', 'area_m2' => 45.5]);
+        Apartment::factory()->for($building)->create(['number' => '2', 'area_m2' => 54.25]);
+
+        Livewire::actingAs($manager)
+            ->test(ManagerDashboard::class)
+            ->set('building_id', $building->id)
+            ->assertSet('totalApartmentsDisplay', '2 · 99,75 м²');
+    }
 }
