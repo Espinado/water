@@ -9,6 +9,15 @@
 
         <x-pwa-meta :app-key="$appKey" />
 
+        <script>
+            window.__PWA_DEFERRED_PROMPT__ = window.__PWA_DEFERRED_PROMPT__ ?? null;
+            window.addEventListener('beforeinstallprompt', (event) => {
+                event.preventDefault();
+                window.__PWA_DEFERRED_PROMPT__ = event;
+                window.dispatchEvent(new CustomEvent('pwa:install-ready'));
+            });
+        </script>
+
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
 
@@ -32,7 +41,12 @@
                 <h1 class="mt-6 text-2xl font-bold text-slate-900">{{ $appConfig['name'] }}</h1>
                 <p class="mt-2 text-sm leading-relaxed text-slate-600">{{ __($appConfig['description']) }}</p>
 
-                <div class="mt-8 w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-100">
+                <div id="pwa-already-installed" class="mt-8 hidden w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-100">
+                    <p class="text-sm font-semibold text-slate-900">{{ __('Приложение установлено') }}</p>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-600">{{ __('Откройте ярлык K16 на главном экране телефона.') }}</p>
+                </div>
+
+                <div id="pwa-install-section" class="mt-8 w-full rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-100">
                     <p class="text-sm font-semibold text-slate-900">{{ __('Установка на телефон') }}</p>
 
                     <p id="pwa-http-warning" @class(['mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950', 'hidden' => request()->secure()])>
@@ -69,6 +83,7 @@
                     <button
                         id="pwa-install-button"
                         type="button"
+                        hidden
                         class="mt-4 inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-70"
                         style="background-color: {{ $appConfig['theme_color'] }}"
                     >
@@ -112,6 +127,7 @@
                 retry: @json(__('Попробовать снова')),
                 unavailable: @json(__('Автоустановка недоступна. Используйте меню браузера (иконка установки в адресной строке).')),
                 needsHttps: @json(__('Для установки нужен HTTPS. Откройте :url', ['url' => 'https://'.request()->getHost().'/app/'.$appKey])),
+                alreadyInstalled: @json(__('Приложение установлено')),
             };
         </script>
     </body>

@@ -84,6 +84,24 @@ return new class extends Migration
             return;
         }
 
+        Schema::table('buildings', function (Blueprint $table) {
+            foreach ($this->waterSupplierForeignKeys() as $foreignKey) {
+                $table->dropForeign($foreignKey);
+            }
+
+            $table->dropColumn('water_supplier_id');
+        });
+    }
+
+    /**
+     * @return list<string|array<int, string>>
+     */
+    protected function waterSupplierForeignKeys(): array
+    {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return [['water_supplier_id']];
+        }
+
         $foreignKey = collect(DB::select(
             'SELECT CONSTRAINT_NAME AS name
              FROM information_schema.KEY_COLUMN_USAGE
@@ -95,13 +113,7 @@ return new class extends Migration
             ['buildings', 'water_supplier_id'],
         ))->value('name');
 
-        Schema::table('buildings', function (Blueprint $table) use ($foreignKey) {
-            if ($foreignKey !== null) {
-                $table->dropForeign($foreignKey);
-            }
-
-            $table->dropColumn('water_supplier_id');
-        });
+        return $foreignKey !== null ? [$foreignKey] : [];
     }
 
     protected function seedServiceCatalog(): void

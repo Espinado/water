@@ -8,8 +8,10 @@ use App\Livewire\Manager\ApartmentReadingsHistory;
 use App\Livewire\Manager\ApartmentTable;
 use App\Livewire\Manager\HouseholdPanel;
 use App\Livewire\Manager\ManagerDashboard;
+use App\Livewire\Manager\ManagerTeam;
 use App\Livewire\Manager\MeterReadings;
 use App\Livewire\Manager\ServiceProviders;
+use App\Livewire\Manager\SupplierInvoices;
 use App\Http\Controllers\LocaleController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +42,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('manager/readings', MeterReadings::class)->name('manager.readings');
         Route::get('manager/readings/apartment/{apartment}', ApartmentReadingsHistory::class)->name('manager.readings.apartment');
         Route::get('manager/suppliers', ServiceProviders::class)->name('manager.suppliers');
+        Route::get('manager/invoices', SupplierInvoices::class)->name('manager.invoices');
+        Route::get('manager/team', ManagerTeam::class)->name('manager.team');
     });
 });
 

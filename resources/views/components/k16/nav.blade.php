@@ -29,10 +29,22 @@
             'icon' => 'building',
         ],
         [
+            'route' => 'manager.invoices',
+            'active' => request()->routeIs('manager.invoices'),
+            'label' => __('Счета'),
+            'icon' => 'invoice',
+        ],
+        [
             'route' => 'manager.suppliers',
             'active' => request()->routeIs('manager.suppliers'),
             'label' => __('Поставщики'),
             'icon' => 'supplier',
+        ],
+        [
+            'route' => 'manager.team',
+            'active' => request()->routeIs('manager.team'),
+            'label' => __('Команда'),
+            'icon' => 'team',
         ],
     ];
 @endphp
@@ -56,13 +68,13 @@
     </nav>
 @else
     <nav {{ $attributes->merge(['class' => 'fixed inset-x-0 bottom-0 z-40 border-t border-k16-border bg-k16-surface lg:hidden']) }} aria-label="{{ __('Разделы') }}">
-        <div class="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+        <div class="mx-auto flex max-w-lg gap-1 overflow-x-auto px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
             @foreach ($items as $item)
                 <a
                     href="{{ route($item['route']) }}"
                     wire:navigate
                     @class([
-                        'k16-nav-link',
+                        'k16-nav-link min-w-[4.5rem] shrink-0',
                         'k16-nav-link-active' => $item['active'],
                         'k16-nav-link-idle' => ! $item['active'],
                     ])

@@ -34,6 +34,34 @@
                 ]) !!}
             </p>
 
+            @php
+                $buildingStatus = $this->buildingReadingStatus;
+                $portfolioStatus = $this->portfolioReadingStatus;
+            @endphp
+            @if (
+                ($buildingStatus !== null && ($buildingStatus['missing_apartments'] > 0 || $buildingStatus['incomplete_apartments'] > 0))
+                || $portfolioStatus['missing_apartments'] > 0
+                || $portfolioStatus['incomplete_apartments'] > 0
+            )
+                <div class="k16-alert-warning space-y-1">
+                    @if ($buildingStatus !== null && $buildingStatus['missing_apartments'] > 0)
+                        <p>{{ __('В этом доме без показаний: :count из :total квартир.', ['count' => $buildingStatus['missing_apartments'], 'total' => $buildingStatus['total_apartments']]) }}</p>
+                    @endif
+                    @if ($buildingStatus !== null && $buildingStatus['incomplete_apartments'] > 0)
+                        <p>{{ __('В этом доме расход не рассчитан: :count кв.', ['count' => $buildingStatus['incomplete_apartments']]) }}</p>
+                    @endif
+                    @if ($portfolioStatus['missing_apartments'] > 0)
+                        <p>{{ __('По всем домам без показаний: :count из :total квартир.', ['count' => $portfolioStatus['missing_apartments'], 'total' => $portfolioStatus['total_apartments']]) }}</p>
+                    @endif
+                    @if ($portfolioStatus['incomplete_apartments'] > 0)
+                        <p>{{ __('По всем домам расход не рассчитан: :count кв.', ['count' => $portfolioStatus['incomplete_apartments']]) }}</p>
+                    @endif
+                    @if ($portfolioStatus['missing_apartments'] > 0 || $portfolioStatus['incomplete_apartments'] > 0)
+                        <p>{{ __('Потери воды в разделе «Счета» могут быть завышены, пока не сданы все показания.') }}</p>
+                    @endif
+                </div>
+            @endif
+
             <div class="space-y-4">
                 <div class="flex flex-wrap gap-2" role="group" aria-label="{{ __('Фильтр') }}">
                     @foreach (['all' => __('Все'), 'debt' => __('Долг'), 'submitted' => __('Сданы')] as $key => $label)

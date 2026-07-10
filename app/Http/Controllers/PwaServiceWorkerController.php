@@ -16,6 +16,10 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
+
+self.addEventListener('fetch', (event) => {
+    event.respondWith(fetch(event.request));
+});
 JS;
 
         return response($content, 200, [

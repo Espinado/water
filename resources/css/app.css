@@ -60,7 +60,11 @@
     }
 
     .k16-sidebar {
-        @apply hidden w-60 shrink-0 border-r border-k16-border bg-k16-bg lg:sticky lg:top-0 lg:flex lg:h-screen lg:max-h-screen lg:flex-col lg:self-start lg:overflow-y-auto;
+        @apply hidden w-60 shrink-0 border-r border-k16-border bg-k16-bg lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:flex-col lg:overflow-y-auto;
+    }
+
+    .k16-main {
+        @apply flex min-h-screen min-w-0 flex-1 flex-col lg:ml-60;
     }
 
     .k16-card {

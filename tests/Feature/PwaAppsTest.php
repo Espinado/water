@@ -26,18 +26,35 @@ class PwaAppsTest extends TestCase
         $this->get('/manifest/resident.webmanifest')
             ->assertOk()
             ->assertHeader('Content-Type', 'application/manifest+json')
-            ->assertJsonFragment(['id' => 'k16-resident', 'start_url' => '/dashboard']);
+            ->assertJsonFragment(['id' => 'k16-resident', 'start_url' => '/dashboard'])
+            ->assertJsonFragment(['src' => '/icons/resident/icon-192.png', 'purpose' => 'any'])
+            ->assertJsonFragment(['src' => '/icons/resident/icon-maskable-512.png', 'purpose' => 'maskable']);
 
         $this->get('/manifest/manager.webmanifest')
             ->assertOk()
-            ->assertJsonFragment(['id' => 'k16-manager', 'start_url' => '/manager']);
+            ->assertJsonFragment(['id' => 'k16-manager', 'start_url' => '/manager'])
+            ->assertJsonFragment(['src' => '/icons/manager/icon-192.png', 'purpose' => 'any']);
+    }
+
+    public function test_pwa_icon_files_exist(): void
+    {
+        foreach (['resident', 'manager'] as $app) {
+            foreach (['icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'] as $file) {
+                $path = public_path("icons/{$app}/{$file}");
+                $this->assertFileExists($path, "Missing {$path}");
+                $this->assertGreaterThan(500, filesize($path), "Icon too small: {$path}");
+            }
+
+            $this->assertFileExists(public_path("icons/{$app}/icon.svg"));
+        }
     }
 
     public function test_service_worker_is_available(): void
     {
         $this->get('/sw.js')
             ->assertOk()
-            ->assertHeader('Content-Type', 'application/javascript; charset=UTF-8');
+            ->assertHeader('Content-Type', 'application/javascript; charset=UTF-8')
+            ->assertSee('addEventListener(\'fetch\'', false);
     }
 
     public function test_resident_login_rejects_manager_account(): void

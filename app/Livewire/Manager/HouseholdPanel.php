@@ -8,12 +8,12 @@ use App\Models\Apartment;
 use App\Models\Building;
 use App\Models\User;
 use App\Services\ManagerContext;
+use App\Services\SendUserInvitation;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -417,18 +417,13 @@ class HouseholdPanel extends Component
         ]);
     }
 
-    protected function sendResidentInvitation(User $user): void
+    protected function sendResidentInvitation(User $user, ?SendUserInvitation $invitations = null): void
     {
-        $status = Password::sendResetLink(['email' => $user->email]);
+        $invitations ??= app(SendUserInvitation::class);
+        $result = $invitations->send($user);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            $user->forceFill(['invitation_sent_at' => now()])->save();
-
-            return;
-        }
-
-        if (is_string($status)) {
-            session()->flash('mgr_warn', __($status));
+        if (! $result['sent'] && $result['message']) {
+            session()->flash('mgr_warn', $result['message']);
         }
     }
 
@@ -529,19 +524,16 @@ class HouseholdPanel extends Component
         session()->flash('mgr_ok', __('Жилец удалён.'));
     }
 
-    public function sendInvitation(int $userId): void
+    public function sendInvitation(int $userId, SendUserInvitation $invitations): void
     {
         $user = $this->findResidentInBuilding($userId);
-        $status = Password::sendResetLink(['email' => $user->email]);
+        $result = $invitations->send($user);
 
-        if ($status !== Password::RESET_LINK_SENT) {
-            session()->flash('mgr_err', is_string($status) ? __($status) : __('Не удалось отправить письмо.'));
-
-            return;
+        if ($result['sent']) {
+            session()->flash('mgr_ok', __('Ссылка для пароля отправлена на :email', ['email' => $user->email]));
+        } else {
+            session()->flash('mgr_err', $result['message'] ?? __('Не удалось отправить письмо.'));
         }
-
-        $user->forceFill(['invitation_sent_at' => now()])->save();
-        session()->flash('mgr_ok', __('Ссылка для пароля отправлена на :email', ['email' => $user->email]));
     }
 
     public function toggleAccess(int $userId): void

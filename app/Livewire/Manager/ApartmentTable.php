@@ -9,13 +9,13 @@ use App\Models\Building;
 use App\Models\User;
 use App\Services\MeterReadingSubmissionNotifier;
 use App\Services\ManagerContext;
+use App\Services\SendUserInvitation;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -144,7 +144,7 @@ class ApartmentTable extends Component
         $this->resetPage();
     }
 
-    public function sendInvitation(int $userId): void
+    public function sendInvitation(int $userId, SendUserInvitation $invitations): void
     {
         $user = User::query()->where('role', UserRole::Resident)->findOrFail($userId);
 
@@ -152,16 +152,13 @@ class ApartmentTable extends Component
             abort(403);
         }
 
-        $status = Password::sendResetLink(['email' => $user->email]);
+        $result = $invitations->send($user);
 
-        if ($status !== Password::RESET_LINK_SENT) {
-            session()->flash('apt_err', is_string($status) ? __($status) : __('Не удалось отправить письмо.'));
-
-            return;
+        if ($result['sent']) {
+            session()->flash('apt_ok', __('Ссылка для установки или сброса пароля отправлена на :email', ['email' => $user->email]));
+        } else {
+            session()->flash('apt_err', $result['message'] ?? __('Не удалось отправить письмо.'));
         }
-
-        $user->forceFill(['invitation_sent_at' => now()])->save();
-        session()->flash('apt_ok', __('Ссылка для установки или сброса пароля отправлена на :email', ['email' => $user->email]));
     }
 
     public function toggleAccess(int $userId): void

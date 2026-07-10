@@ -9,6 +9,7 @@ use App\Models\Building;
 use App\Models\MeterReading;
 use App\Services\ManagerContext;
 use App\Services\RecordMeterReading;
+use App\Services\WaterConsumptionAggregator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -85,6 +86,7 @@ class MeterReadings extends Component
         $this->persistManagerContext($context);
         $this->resetPage();
         $this->cancelEditApartment();
+        unset($this->buildingReadingStatus, $this->portfolioReadingStatus);
     }
 
     public function updatedYear(ManagerContext $context): void
@@ -92,6 +94,7 @@ class MeterReadings extends Component
         $this->persistManagerContext($context);
         $this->resetPage();
         $this->cancelEditApartment();
+        unset($this->buildingReadingStatus, $this->portfolioReadingStatus);
     }
 
     public function updatedMonth(ManagerContext $context): void
@@ -99,6 +102,7 @@ class MeterReadings extends Component
         $this->persistManagerContext($context);
         $this->resetPage();
         $this->cancelEditApartment();
+        unset($this->buildingReadingStatus, $this->portfolioReadingStatus);
     }
 
     public function updatedPaginators(mixed $page, string $pageName): void
@@ -207,6 +211,7 @@ class MeterReadings extends Component
 
         session()->flash('mgr_reading_ok', __('Сохранено для кв. :number', ['number' => $apartment->number]));
         $this->cancelEditApartment();
+        unset($this->buildingReadingStatus, $this->portfolioReadingStatus);
     }
 
     public function formatM3(mixed $value): string
@@ -284,6 +289,26 @@ class MeterReadings extends Component
     public function buildings(): Collection
     {
         return Building::query()->withCount('apartments')->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function buildingReadingStatus(): ?array
+    {
+        if ($this->building_id === null) {
+            return null;
+        }
+
+        return app(WaterConsumptionAggregator::class)->aggregateForPeriod(
+            $this->year,
+            $this->month,
+            $this->building_id,
+        );
+    }
+
+    #[Computed]
+    public function portfolioReadingStatus(): array
+    {
+        return app(WaterConsumptionAggregator::class)->aggregateForPeriod($this->year, $this->month);
     }
 
     protected function rowsQuery(): Builder

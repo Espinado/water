@@ -18,8 +18,8 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="k16-theme font-sans antialiased">
-        <div class="k16-shell lg:flex">
-            <aside class="k16-sidebar">
+        <div class="k16-shell min-h-screen bg-k16-bg">
+            <aside class="k16-sidebar hidden w-60 shrink-0 border-r border-k16-border bg-k16-bg lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:flex-col lg:overflow-y-auto">
                 <div class="border-b border-k16-border px-5 py-5">
                     <p class="text-lg font-bold text-k16-text">{{ config('pwa.apps.manager.name', 'K16 Pro') }}</p>
                     <p class="mt-1 text-sm text-k16-text-muted">{{ __('Управление домами') }}</p>
@@ -27,7 +27,7 @@
                 <x-k16.nav variant="sidebar" class="flex-1" />
             </aside>
 
-            <div class="flex min-h-screen min-w-0 flex-1 flex-col">
+            <div class="k16-main flex min-h-screen min-w-0 flex-col lg:ml-60">
                 <livewire:layout.manager-header />
 
                 @if (isset($header))

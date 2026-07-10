@@ -28,22 +28,28 @@ class PwaManifestController extends Controller
             'lang' => str_replace('_', '-', app()->getLocale()),
             'icons' => [
                 [
-                    'src' => asset("{$iconsPath}/icon.svg"),
-                    'sizes' => 'any',
-                    'type' => 'image/svg+xml',
-                    'purpose' => 'any',
-                ],
-                [
-                    'src' => asset("{$iconsPath}/icon-192.png"),
+                    'src' => "/{$iconsPath}/icon-192.png",
                     'sizes' => '192x192',
                     'type' => 'image/png',
                     'purpose' => 'any',
                 ],
                 [
-                    'src' => asset("{$iconsPath}/icon-512.png"),
+                    'src' => "/{$iconsPath}/icon-512.png",
+                    'sizes' => '512x512',
+                    'type' => 'image/png',
+                    'purpose' => 'any',
+                ],
+                [
+                    'src' => "/{$iconsPath}/icon-maskable-512.png",
                     'sizes' => '512x512',
                     'type' => 'image/png',
                     'purpose' => 'maskable',
+                ],
+                [
+                    'src' => "/{$iconsPath}/icon.svg",
+                    'sizes' => 'any',
+                    'type' => 'image/svg+xml',
+                    'purpose' => 'any',
                 ],
             ],
         ], 200, [
