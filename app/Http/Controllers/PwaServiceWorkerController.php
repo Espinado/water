@@ -17,9 +17,9 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('fetch', (event) => {
-    event.respondWith(fetch(event.request));
-});
+// Required for PWA install criteria; do not intercept fetch — passthrough
+// respondWith() breaks navigation/Livewire when the network blips.
+self.addEventListener('fetch', () => {});
 JS;
 
         return response($content, 200, [
